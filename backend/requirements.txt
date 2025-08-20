@@ -1,0 +1,42 @@
+# --- FastAPI Core ---
+eventlet
+fastapi
+uvicorn[standard] # ASGI server to run the app
+pydantic
+pydantic-settings
+python-multipart # For handling file uploads
+
+# --- Database ---
+sqlalchemy
+
+# We are using SQLite which is part of the standard library,
+# so no specific database driver is needed here. If using PostgreSQL,
+# you would add psycopg2-binary.
+# --- Background Tasks & Caching ---
+# celery
+# redis
+
+# --- PDF Parsing ---
+PyMuPDF # fitz
+
+# --- ML / Recommender ---
+sentence-transformers
+faiss-cpu # Use faiss-cpu for CPU-only environments
+numpy
+scikit-learn # Often a dependency for ML tasks, good to have
+
+# --- Optional for LLM/TTS Integrations ---
+# These are based on the generic files provided.
+# You can uncomment and add them as needed.
+# langchain # Not currently used
+# langchain-openai # Not currently used
+# langchain-google-genai # Not currently used
+# langchain-community # Not currently used
+requests # For Azure TTS
+google-cloud-texttospeech # For Google Cloud TTS
+
+# --- Optional for Podcast Audio Manipulation ---
+pydub
+
+# For loading .env files
+python-dotenv

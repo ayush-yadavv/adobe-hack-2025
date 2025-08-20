@@ -1,0 +1,1809 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AI Document Analysis API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/collections/": {
+      "get": {
+        "tags": ["Collections"],
+        "summary": "Retrieve all collections",
+        "description": "Fetches a list of all collections available in the database, including their associated metadata and document counts.",
+        "operationId": "read_collections_api_v1_collections__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionInDB"
+                  },
+                  "type": "array",
+                  "title": "Response Read Collections Api V1 Collections  Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Collections"],
+        "summary": "Create a new collection",
+        "description": "Creates a new collection with the provided name, description, and tags. The collection's ID, creation timestamp, and document count are returned upon successful creation.",
+        "operationId": "create_collection_api_v1_collections__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collections/{collection_id}": {
+      "get": {
+        "tags": ["Collections"],
+        "summary": "Retrieve a single collection by ID",
+        "description": "Fetches a single collection's details using its unique identifier. Returns a 404 error if the collection is not found.",
+        "operationId": "read_collection_api_v1_collections__collection_id__get",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Collection Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Collections"],
+        "summary": "Update an existing collection",
+        "description": "Updates an existing collection's details using its unique identifier. Allows for partial updates (e.g., changing only the name or description). Returns a 404 error if the collection is not found.",
+        "operationId": "update_collection_api_v1_collections__collection_id__patch",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Collection Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Collections"],
+        "summary": "Delete a collection",
+        "description": "Deletes a collection and all of its associated documents using its unique identifier. Returns a 404 error if the collection is not found.",
+        "operationId": "delete_collection_api_v1_collections__collection_id__delete",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Collection Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/upload": {
+      "post": {
+        "tags": ["Documents"],
+        "summary": "Upload documents to a default collection",
+        "description": "Handles the bulk upload of one or more documents. If no collection is specified, documents are added to a default collection. Document processing (e.g., embedding creation) is handled asynchronously in a background task. Returns the details of the collection and the newly created documents.",
+        "operationId": "default_document_upload_api_v1_documents_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_default_document_upload_api_v1_documents_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/collections/{collection_id}/documents/upload": {
+      "post": {
+        "tags": ["Documents"],
+        "summary": "Upload documents to a specific collection",
+        "description": "Handles the bulk upload of one or more documents to a specified collection. Document processing (e.g., embedding creation) is handled asynchronously in a background task. Returns a list of the newly created document details.",
+        "operationId": "upload_documents_to_collection_api_v1_documents_collections__collection_id__documents_upload_post",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Collection Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_documents_to_collection_api_v1_documents_collections__collection_id__documents_upload_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentInDB"
+                  },
+                  "title": "Response Upload Documents To Collection Api V1 Documents Collections  Collection Id  Documents Upload Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/collections/{collection_id}/documents": {
+      "get": {
+        "tags": ["Documents"],
+        "summary": "Retrieve all documents in a collection",
+        "description": "Fetches a list of all documents belonging to a specific collection, identified by its ID. Returns an empty list if the collection has no documents.",
+        "operationId": "read_documents_in_collection_api_v1_documents_collections__collection_id__documents_get",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Collection Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentInDB"
+                  },
+                  "title": "Response Read Documents In Collection Api V1 Documents Collections  Collection Id  Documents Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}": {
+      "get": {
+        "tags": ["Documents"],
+        "summary": "Retrieve a single document by ID",
+        "description": "Fetches a single document's details using its unique identifier. Returns a 404 error if the document is not found.",
+        "operationId": "read_document_api_v1_documents__document_id__get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Documents"],
+        "summary": "Delete a document",
+        "description": "Deletes a document using its unique identifier. This action also triggers a background task to refresh the embeddings for the associated collection. Returns a 404 error if the document is not found.",
+        "operationId": "delete_document_api_v1_documents__document_id__delete",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recommendations/persona-based": {
+      "post": {
+        "tags": ["Recommendations"],
+        "summary": "Generate persona-based recommendations",
+        "description": "Generates a new recommendation based on a specified persona or job-to-be-done. At least one of 'persona' or 'job_to_be_done' must be provided. Returns the newly created recommendation record, including its associated items.",
+        "operationId": "run_analysis_api_v1_recommendations_persona_based_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Run Analysis Api V1 Recommendations Persona Based Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recommendations/text-based": {
+      "post": {
+        "tags": ["Recommendations"],
+        "summary": "Generate text-based recommendations",
+        "description": "Generates a new recommendation based on a user's selected text and a list of collection IDs to search within. Returns the newly created recommendation record, including its associated items.",
+        "operationId": "get_text_based_recommendations_api_v1_recommendations_text_based_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_get_text_based_recommendations_api_v1_recommendations_text_based_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Text Based Recommendations Api V1 Recommendations Text Based Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recommendations/collections/{collection_id}": {
+      "get": {
+        "tags": ["Recommendations"],
+        "summary": "Retrieve all recommendations for a collection",
+        "description": "Fetches a list of all recommendation records associated with a specific collection. The response includes basic recommendation details but excludes the full content of associated items for brevity.",
+        "operationId": "get_all_recommendations_for_collection_api_v1_recommendations_collections__collection_id__get",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the collection to retrieve recommendations for.",
+              "title": "Collection Id"
+            },
+            "description": "The ID of the collection to retrieve recommendations for."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Get All Recommendations For Collection Api V1 Recommendations Collections  Collection Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recommendations/{recommendation_id}": {
+      "get": {
+        "tags": ["Recommendations"],
+        "summary": "Retrieve a specific recommendation by ID",
+        "description": "Fetches a single recommendation record by its unique ID, including all its associated items (snippets and explanations). Returns a 404 error if the recommendation is not found.",
+        "operationId": "get_recommendation_api_v1_recommendations__recommendation_id__get",
+        "parameters": [
+          {
+            "name": "recommendation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the recommendation to retrieve.",
+              "title": "Recommendation Id"
+            },
+            "description": "The ID of the recommendation to retrieve."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Recommendation Api V1 Recommendations  Recommendation Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recommendations/": {
+      "delete": {
+        "tags": ["Recommendations"],
+        "summary": "Delete one or more recommendations",
+        "description": "Deletes one or more recommendation records by their IDs. Accepts a list of recommendation IDs in the request body.",
+        "operationId": "delete_recommendations_api_v1_recommendations__delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_delete_recommendations_api_v1_recommendations__delete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insights/generate": {
+      "get": {
+        "tags": ["Insights"],
+        "summary": "Generate and retrieve insights for an entity",
+        "description": "Generates and retrieves structured insights for a specified document, collection, or recommendation. Exactly one of `doc_id`, `col_id`, or `rec_id` must be provided. The generated insight is stored and returned.",
+        "operationId": "generate_insights_for_entity_api_v1_insights_generate_get",
+        "parameters": [
+          {
+            "name": "doc_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ID of the document to generate insights for.",
+              "title": "Doc Id"
+            },
+            "description": "ID of the document to generate insights for."
+          },
+          {
+            "name": "col_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ID of the collection to generate insights for.",
+              "title": "Col Id"
+            },
+            "description": "ID of the collection to generate insights for."
+          },
+          {
+            "name": "rec_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ID of the recommendation to generate insights for.",
+              "title": "Rec Id"
+            },
+            "description": "ID of the recommendation to generate insights for."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsightInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insights/{insight_id}": {
+      "get": {
+        "tags": ["Insights"],
+        "summary": "Retrieve a single insight by ID",
+        "description": "Fetches a single insight's details using its unique identifier. Returns a 404 error if the insight is not found.",
+        "operationId": "get_insight_by_id_api_v1_insights__insight_id__get",
+        "parameters": [
+          {
+            "name": "insight_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the insight to retrieve.",
+              "title": "Insight Id"
+            },
+            "description": "The unique identifier of the insight to retrieve."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsightInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/podcasts/generate/from-document/{document_id}": {
+      "post": {
+        "tags": ["Podcasts"],
+        "summary": "Generate a podcast from a document",
+        "description": "Generates an audio podcast from the content of a specified document. The generation process is synchronous. Returns the details of the newly created podcast, including its audio URL and transcript.",
+        "operationId": "generate_podcast_from_document_api_v1_podcasts_generate_from_document__document_id__post",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the document to generate the podcast from.",
+              "title": "Document Id"
+            },
+            "description": "The ID of the document to generate the podcast from."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PodcastGenerateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PodcastInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/podcasts/generate/from-recommendation/{recommendation_id}": {
+      "post": {
+        "tags": ["Podcasts"],
+        "summary": "Generate a podcast from a recommendation",
+        "description": "Generates an audio podcast from the content of a specified recommendation. The generation process is synchronous. Returns the details of the newly created podcast, including its audio URL and transcript.",
+        "operationId": "generate_podcast_from_recommendation_api_v1_podcasts_generate_from_recommendation__recommendation_id__post",
+        "parameters": [
+          {
+            "name": "recommendation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the recommendation to generate the podcast from.",
+              "title": "Recommendation Id"
+            },
+            "description": "The ID of the recommendation to generate the podcast from."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PodcastGenerateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PodcastInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/podcasts/{podcast_id}": {
+      "get": {
+        "tags": ["Podcasts"],
+        "summary": "Retrieve a single podcast by ID",
+        "description": "Fetches a single podcast's details using its unique identifier. Returns a 404 error if the podcast is not found.",
+        "operationId": "get_podcast_api_v1_podcasts__podcast_id__get",
+        "parameters": [
+          {
+            "name": "podcast_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the podcast to retrieve.",
+              "title": "Podcast Id"
+            },
+            "description": "The unique identifier of the podcast to retrieve."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PodcastInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/podcasts/generate/from-collection/{collection_id}": {
+      "post": {
+        "tags": ["Podcasts"],
+        "summary": "Generate a podcast from a collection",
+        "description": "Generates an audio podcast from the aggregated content of documents within a specified collection. The generation process is synchronous. Returns the details of the newly created podcast, including its audio URL and transcript.",
+        "operationId": "generate_podcast_from_collection_api_v1_podcasts_generate_from_collection__collection_id__post",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the collection to generate the podcast from.",
+              "title": "Collection Id"
+            },
+            "description": "The ID of the collection to generate the podcast from."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PodcastGenerateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PodcastInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": ["Root"],
+        "summary": "Read Root",
+        "description": "A simple root endpoint for health checks and to welcome users.",
+        "operationId": "read_root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalysisRequest": {
+        "properties": {
+          "persona": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Persona"
+          },
+          "job_to_be_done": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job To Be Done"
+          },
+          "collection_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Collection Ids"
+          }
+        },
+        "type": "object",
+        "required": ["collection_ids"],
+        "title": "AnalysisRequest"
+      },
+      "Body_default_document_upload_api_v1_documents_upload_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string",
+              "format": "binary"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "List of files to upload."
+          }
+        },
+        "type": "object",
+        "required": ["files"],
+        "title": "Body_default_document_upload_api_v1_documents_upload_post"
+      },
+      "Body_delete_recommendations_api_v1_recommendations__delete": {
+        "properties": {
+          "recommendation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommendation Ids",
+            "description": "List of recommendation IDs to delete."
+          }
+        },
+        "type": "object",
+        "required": ["recommendation_ids"],
+        "title": "Body_delete_recommendations_api_v1_recommendations__delete"
+      },
+      "Body_get_text_based_recommendations_api_v1_recommendations_text_based_post": {
+        "properties": {
+          "selected_text": {
+            "type": "string",
+            "title": "Selected Text",
+            "description": "The text selected by the user."
+          },
+          "collection_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Collection Ids",
+            "description": "List of collection IDs to search within."
+          }
+        },
+        "type": "object",
+        "required": ["selected_text", "collection_ids"],
+        "title": "Body_get_text_based_recommendations_api_v1_recommendations_text_based_post"
+      },
+      "Body_upload_documents_to_collection_api_v1_documents_collections__collection_id__documents_upload_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string",
+              "format": "binary"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "List of files to upload."
+          }
+        },
+        "type": "object",
+        "required": ["files"],
+        "title": "Body_upload_documents_to_collection_api_v1_documents_collections__collection_id__documents_upload_post"
+      },
+      "CollectionCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the collection is required on creation."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "A brief description of the collection's purpose."
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "A list of tags for categorization."
+          }
+        },
+        "type": "object",
+        "required": ["name"],
+        "title": "CollectionCreate",
+        "description": "Pydantic model for creating a new collection.\n\nInherits from CollectionBase and makes the 'name' field required."
+      },
+      "CollectionInDB": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "The name of the collection."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "A brief description of the collection's purpose."
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "A list of tags for categorization."
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The unique identifier for the collection."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat",
+            "description": "The timestamp when the collection was created."
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updatedat",
+            "description": "The timestamp of the last update."
+          },
+          "total_docs": {
+            "type": "integer",
+            "title": "Total Docs",
+            "description": "The total number of documents in the collection.",
+            "default": 0
+          },
+          "latestInsightId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latestinsightid",
+            "description": "ID of the latest insight generated for this collection."
+          },
+          "latestPodcastId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latestpodcastid",
+            "description": "ID of the latest podcast generated for this collection."
+          }
+        },
+        "type": "object",
+        "required": ["id", "createdAt"],
+        "title": "CollectionInDB",
+        "description": "Pydantic model representing a collection as it is stored in the database.\n\nThis model is used for API responses and includes database-generated fields."
+      },
+      "CollectionUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "The name of the collection."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "A brief description of the collection's purpose."
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "A list of tags for categorization."
+          }
+        },
+        "type": "object",
+        "title": "CollectionUpdate",
+        "description": "Pydantic model for updating an existing collection.\n\nAll fields are optional to allow for partial updates."
+      },
+      "DocumentInDB": {
+        "properties": {
+          "docTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doctitle",
+            "description": "A user-editable title for the document."
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The unique identifier for the document."
+          },
+          "collectionId": {
+            "type": "string",
+            "title": "Collectionid",
+            "description": "The ID of the collection this document belongs to."
+          },
+          "docName": {
+            "type": "string",
+            "title": "Docname",
+            "description": "The original filename of the document."
+          },
+          "docSizeKB": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Docsizekb",
+            "description": "The size of the document in kilobytes."
+          },
+          "total_pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Pages",
+            "description": "The total number of pages in the document."
+          },
+          "docType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doctype",
+            "description": "The MIME type of the document."
+          },
+          "docUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Docurl",
+            "description": "The URL where the document is stored."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat",
+            "description": "The timestamp when the document was created."
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updatedat",
+            "description": "The timestamp of the last update."
+          },
+          "latestInsightId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latestinsightid",
+            "description": "ID of the latest insight generated for this document."
+          },
+          "latestPodcastId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latestpodcastid",
+            "description": "ID of the latest podcast generated for this document."
+          },
+          "isProcessed": {
+            "$ref": "#/components/schemas/ProcessingStatus",
+            "description": "The processing status of the document.",
+            "default": "Pending"
+          },
+          "isEmbeddingCreated": {
+            "$ref": "#/components/schemas/ProcessingStatus",
+            "description": "The status of embedding creation for the document.",
+            "default": "Pending"
+          },
+          "outline": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentOutlineItemPydantic"
+            },
+            "type": "array",
+            "title": "Outline",
+            "description": "The structured outline of the document.",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": ["id", "collectionId", "docName", "createdAt"],
+        "title": "DocumentInDB",
+        "example": {
+          "collectionId": "collection_example_id_abc",
+          "createdAt": "2025-01-01T12:00:00",
+          "docName": "example_document.pdf",
+          "docSizeKB": 1024,
+          "docTitle": "Example Document Title",
+          "docType": "application/pdf",
+          "docUrl": "storage/uploads/collection_example_id_abc/example_document.pdf",
+          "id": "doc_example_id_123",
+          "isEmbeddingCreated": "Pending",
+          "isProcessed": "Success",
+          "outline": [],
+          "total_pages": 5,
+          "updatedAt": "2025-01-01T12:00:00"
+        }
+      },
+      "DocumentOutlineItemPydantic": {
+        "properties": {
+          "level": {
+            "type": "string",
+            "title": "Level",
+            "description": "The heading level (e.g., 'H1', 'H2')."
+          },
+          "section_id": {
+            "type": "string",
+            "title": "Section Id",
+            "description": "The unique identifier for this section."
+          },
+          "documentId": {
+            "type": "string",
+            "title": "Documentid",
+            "description": "The ID of the document this outline item belongs to."
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "The text content of the heading."
+          },
+          "annotation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annotation",
+            "description": "Additional annotation data."
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page",
+            "description": "The page number where the section appears."
+          }
+        },
+        "type": "object",
+        "required": ["level", "section_id", "documentId", "text", "page"],
+        "title": "DocumentOutlineItemPydantic",
+        "description": "Pydantic model for a single item in a document's outline, for API responses."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InsightInDB": {
+        "properties": {
+          "insightId": {
+            "type": "string",
+            "title": "Insightid",
+            "description": "The unique identifier for the insight."
+          },
+          "sourceType": {
+            "type": "string",
+            "title": "Sourcetype",
+            "description": "The type of the source ('document', 'collection', or 'recommendation')."
+          },
+          "sourceId": {
+            "type": "string",
+            "title": "Sourceid",
+            "description": "The ID of the source entity."
+          },
+          "insights_data": {
+            "items": {
+              "$ref": "#/components/schemas/InsightItem"
+            },
+            "type": "array",
+            "title": "Insights Data",
+            "description": "The list of structured insight items."
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generatedat",
+            "description": "The timestamp when the insight was generated."
+          }
+        },
+        "type": "object",
+        "required": [
+          "insightId",
+          "sourceType",
+          "sourceId",
+          "insights_data",
+          "generatedAt"
+        ],
+        "title": "InsightInDB",
+        "description": "Pydantic model representing an insight as stored in the database.\n\nThis model is used for API responses.",
+        "example": {
+          "generatedAt": "2025-01-01T12:00:00",
+          "insightId": "insight_abc123",
+          "insights_data": [
+            {
+              "data": "The main point of the document is...",
+              "priority": 1,
+              "type": "key_insight"
+            },
+            {
+              "data": "Did you know that...",
+              "priority": 2,
+              "type": "did_you_know"
+            }
+          ],
+          "sourceId": "doc_xyz789",
+          "sourceType": "document"
+        }
+      },
+      "InsightItem": {
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/InsightType",
+            "description": "The category of the insight."
+          },
+          "data": {
+            "type": "string",
+            "title": "Data",
+            "description": "The actual text content of the structured insight."
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority",
+            "description": "A numerical priority for the insight, lower is higher priority.",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": ["type", "data"],
+        "title": "InsightItem",
+        "description": "Pydantic model for a single structured insight item."
+      },
+      "InsightType": {
+        "type": "string",
+        "enum": [
+          "Key insights",
+          "Did you know?",
+          "Contradictions / counterpoints",
+          "Inspirations or connections across docs",
+          "generation_error"
+        ],
+        "title": "InsightType"
+      },
+      "PodcastGenerateRequest": {
+        "properties": {
+          "include_insights": {
+            "type": "boolean",
+            "title": "Include Insights",
+            "description": "Flag to include insights in the podcast summary.",
+            "default": false
+          },
+          "min_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Duration Seconds",
+            "description": "Minimum desired podcast duration in seconds (default: 120s = 2min).",
+            "default": 120
+          },
+          "max_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Duration Seconds",
+            "description": "Maximum desired podcast duration in seconds (default: 240s = 4min).",
+            "default": 240
+          }
+        },
+        "type": "object",
+        "title": "PodcastGenerateRequest",
+        "description": "Pydantic model for the request body to generate a podcast."
+      },
+      "PodcastInDB": {
+        "properties": {
+          "sourceType": {
+            "type": "string",
+            "title": "Sourcetype",
+            "description": "The type of the source ('document' or 'recommendation')."
+          },
+          "sourceId": {
+            "type": "string",
+            "title": "Sourceid",
+            "description": "The ID of the source entity."
+          },
+          "transcript": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PodcastSegment"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcript",
+            "description": "A list of podcast segments, representing the full transcript."
+          },
+          "podcastId": {
+            "type": "string",
+            "title": "Podcastid",
+            "description": "The unique identifier for the podcast."
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "The current status of the generation job."
+          },
+          "audioUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audiourl",
+            "description": "The URL where the generated audio file is stored."
+          },
+          "durationSeconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Durationseconds",
+            "description": "The length of the audio in seconds."
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generatedat",
+            "description": "The timestamp when the podcast was generated."
+          },
+          "shortDescription": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shortdescription",
+            "description": "A two-sentence description of what the podcast is all about."
+          }
+        },
+        "type": "object",
+        "required": [
+          "sourceType",
+          "sourceId",
+          "podcastId",
+          "status",
+          "generatedAt"
+        ],
+        "title": "PodcastInDB",
+        "description": "Pydantic model representing a podcast as stored in the database.\nThis model is used for API responses."
+      },
+      "PodcastSegment": {
+        "properties": {
+          "speaker": {
+            "type": "string",
+            "title": "Speaker",
+            "description": "The speaker for this segment (e.g., 'HOST', 'GUEST')."
+          },
+          "dialogue": {
+            "type": "string",
+            "title": "Dialogue",
+            "description": "The dialogue for this segment."
+          },
+          "words": {
+            "type": "integer",
+            "title": "Words",
+            "description": "The estimated word count for this segment."
+          },
+          "order": {
+            "type": "integer",
+            "title": "Order",
+            "description": "The order of this segment in the overall script."
+          }
+        },
+        "type": "object",
+        "required": ["speaker", "dialogue", "words", "order"],
+        "title": "PodcastSegment",
+        "description": "Represents a single segment of the podcast script."
+      },
+      "ProcessingStatus": {
+        "type": "string",
+        "enum": ["Pending", "Success", "Failed"],
+        "title": "ProcessingStatus"
+      },
+      "UploadResponse": {
+        "properties": {
+          "collection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CollectionInDB"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The collection details associated with the uploaded documents."
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentInDB"
+            },
+            "type": "array",
+            "title": "Documents",
+            "description": "List of uploaded document details."
+          }
+        },
+        "type": "object",
+        "required": ["documents"],
+        "title": "UploadResponse",
+        "description": "Response model for document upload operations, including collection and document details."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

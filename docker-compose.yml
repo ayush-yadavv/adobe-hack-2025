@@ -1,0 +1,43 @@
+version: "3.8"
+
+services:
+  # The FastAPI API Server
+  api:
+    build:
+      context: ./backend
+      target: app # This tells Docker to build the 'app' stage from the Dockerfile
+    restart: always
+    ports:
+      - "8000:8000" # Backend API runs on 8000
+    volumes:
+      - ./backend/storage:/app/storage # Mounts local storage for uploads & artifacts
+      - ./backend/app.db:/app/app.db # Mounts the SQLite database file
+    environment:
+      - DATABASE_URL=sqlite:///./app.db
+      - STORAGE_PATH=./storage
+      # Environment variables for LLM and TTS providers
+      - LLM_PROVIDER=${LLM_PROVIDER}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - GEMINI_MODEL=${GEMINI_MODEL}
+      - TTS_PROVIDER=${TTS_PROVIDER}
+      - AZURE_TTS_KEY=${AZURE_TTS_KEY}
+      - AZURE_TTS_ENDPOINT=${AZURE_TTS_ENDPOINT}
+      # Add any other environment variables needed by your core modules (e.g., API keys)
+      # - GOOGLE_API_KEY=${GOOGLE_API_KEY} # This was commented out, keeping it that way
+    # Ensure the backend is ready before the frontend starts trying to connect
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # The Frontend Application
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "8080:8080" # Frontend serves on 8080
+    depends_on:
+      api:
+        condition: service_healthy # Ensure backend is healthy before starting frontend
+    restart: always
