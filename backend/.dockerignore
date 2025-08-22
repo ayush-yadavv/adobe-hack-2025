@@ -8,9 +8,11 @@ __pycache__/
 .venv/
 venv/
 env/
+app.db
 *.egg-info/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
 .DS_Store
 .env
+storage

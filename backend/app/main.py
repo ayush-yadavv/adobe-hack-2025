@@ -66,7 +66,7 @@ app.add_middleware(
 logger.debug("Main: CORS middleware added.")
 
 # Mount static files directory
-app.mount("/storage", StaticFiles(directory="backend/storage"), name="storage")
+app.mount("/storage", StaticFiles(directory="/app/storage"), name="storage")
 logger.debug("Main: Mounted static files directory at '/storage'")
 
 # --- Event Handlers ---
