@@ -1,145 +1,127 @@
-# AI-Powered Document Insights and Recommendations
+# AI-Powered Document Intelligence Engine
+This project is a comprehensive application designed to process documents, generate AI-driven insights, and provide personalized recommendations. It features a robust FastAPI backend and a modern React frontend, containerized with Docker for easy setup and deployment.
 
-This project is a comprehensive application designed to process documents, generate AI-driven insights, and provide personalized recommendations. It features a robust FastAPI backend API and a modern React frontend, orchestrated using Docker Compose for easy setup and deployment.
+## ✨ Features
+Document Processing: Upload and process PDF documents, with the core structure extracted for analysis.
 
-## Features
+AI-Driven Insights: Extract key information, summaries, and contextual insights from documents using advanced language models.
 
-- **Document Processing:** Upload and process various document types (e.g., PDFs).
-- **AI-Driven Insights:** Extract key information, summaries, and insights from documents using AI models.
-- **Personalized Recommendations:** Generate recommendations based on document content and user interactions.
-- **Collection Management:** Organize documents into collections.
-- **Podcast Generation:** (Potentially) Convert document insights into audio podcasts.
+Personalized Recommendations: Generate relevant recommendations based on document content and user-defined personas or text selections.
 
-### Important Note on Highlighting:
+Collection Management: Organize your documents into named collections for streamlined analysis.
 
-The document highlighting functionality is currently unreliable (approximately 80% failure rate). The system attempts fallbacks to text search and then annotations if direct highlighting fails. The "go to page" feature works correctly. The team is interested in exploring more robust highlighting methods.
+Podcast Generation: Convert document insights into a conversational, two-speaker audio podcast.
 
-## Architecture
+## 🏛️ Architecture
+The project follows a modern client-server architecture composed of two main services:
 
-The project is composed of two main services:
+Backend (FastAPI): A Python-based API that handles all core logic, including document processing, AI model interactions, database management, and serving the API endpoints.
 
-- **Backend (FastAPI):** A Python-based API that handles document processing, AI model interactions, data storage, and serves the API endpoints.
-- **Frontend (React):** A modern web application built with React and TypeScript, providing a user interface for interacting with the backend services.
+Frontend (React): A modern web application built with React and TypeScript, providing an interactive user interface for uploading, viewing, and analyzing documents.
 
-Both services are containerized using Docker and orchestrated with Docker Compose.
+Both services are containerized using Docker and orchestrated with a single Dockerfile and docker-compose.yml for a unified build and run experience.
 
-## Getting Started
-
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
+## 🚀 Getting Started
+These instructions will get you a copy of the project up and running on your local machine for development and testing.
 
 ### Prerequisites
+- Docker`
 
-- [Docker](https://www.docker.com/get-started)
-- [Docker Compose](https://docs.docker.com/compose/install/)
+- Docker Compose
 
 ### Installation and Running
+#### Clone the repository:
 
-1.  **Clone the repository:**
 
-    ```bash
-    git clone https://github.com/ayush-yadavv/adobe-hack-2025.git
-    cd adobe-hack-2025
-    ```
+` git clone https://github.com/your-username/adobe-hack-2025.git`
 
-2.  **Environment Variables:**
-    Create a `.env` file in the root directory of the project (where `docker-compose.yml` is located) and add the necessary environment variables. At a minimum, you'll need:
+`cd adobe-hack-2025`
 
-    ```
-    LLM_PROVIDER= # e.g., "google" or "openai"
-    GEMINI_MODEL= # e.g., "gemini-pro" (if using Google LLM)
-    TTS_PROVIDER= # e.g., "google" or "azure"
-    AZURE_TTS_KEY= # Your Azure Text-to-Speech key (if using Azure TTS)
-    AZURE_TTS_ENDPOINT= # Your Azure Text-to-Speech endpoint (if using Azure TTS)
-    GOOGLE_APPLICATION_CREDENTIALS= # Path to your Google Cloud credentials JSON file (if using Google LLM/TTS)
-    ```
+#### Backend Environment Variables: 
 
-    _Note: For `GOOGLE_APPLICATION_CREDENTIALS`, you might need to mount this file into the Docker container. For local development, you can place it in the `backend` directory and update the `docker-compose.yml` volume mount accordingly._
+Create a .env file in the project's root directory (where docker-compose.yml is located). Add the necessary environment variables for the services you intend to use.
 
-3.  **Frontend Environment Variables:**
-    Create a `.env` file inside the `frontend` directory (e.g., `frontend/.env`) and add the `ADOBE_EMBED_API_KEY`. This key is used by the frontend to embed documents.
+- Example .env for local testing:
 
-    ```
-    ADOBE_EMBED_API_KEY=YOUR_ADOBE_EMBED_API_KEY
-    ```
+#### For the LLM
 
-    _You can obtain your Adobe Embed API Key from Adobe's developer portal._
+`LLM_PROVIDER="ollama"`
 
-4.  **Build the Docker images:**
-    This command will build the Docker images for both the frontend and backend services based on their respective `Dockerfile`s.
+`OLLAMA_MODEL="llama3"`
 
-    ```bash
-    docker-compose build
-    ```
+#### For Text-to-Speech
+`TTS_PROVIDER="local"`
 
-    takes 30 min max
+#### Frontend Environment Variables: 
 
-5.  **Run the Docker containers:**
-    This command will start both the backend and frontend services in detached mode (in the background).
+Create a .env file inside the frontend directory (frontend/.env) and add your Adobe Embed API key:
 
-    ```bash
-    docker-compose up -d
-    ```
+`VITE_ADOBE_EMBED_API_KEY=YOUR_ADOBE_EMBED_API_KEY`
 
-6.  **Access the Application:**
-    - **Frontend:** Open your web browser and navigate to `http://localhost:8080`
-    - **Backend API:** The API will be available at `http://localhost:8000` (e.g., `http://localhost:8000/docs` for OpenAPI documentation).
+(You can obtain this key from the Adobe Developer Console.)
 
-## Backend
+#### Build and Run the Application:
 
-The backend is built with FastAPI and handles all the core logic of the application.
 
-### Technologies Used
+`docker-compose up --build -d`
 
-- **FastAPI:** High-performance web framework for building APIs with Python.
-- **Uvicorn:** ASGI server.
-- **SQLAlchemy:** ORM for database interactions (using SQLite by default).
-- **PyMuPDF:** For PDF parsing.
-- **Sentence Transformers & FAISS:** For machine learning models related to insights and recommendations.
-- **Requests, Google Cloud Text-to-Speech, pydub:** For optional LLM/TTS integrations and audio manipulation.
+#### Access the Application:
 
-### Key Features
+Frontend: `http://localhost:8080`
 
-- RESTful API for document and collection management.
-- Integration with AI models for insight generation.
-- Recommendation engine.
-- Modular and scalable architecture.
+Backend API Docs: `http://localhost:8000/docs`
 
-### API Documentation
+## ⚙️ Technology Stack
 
-Once the backend is running, you can access the interactive API documentation (Swagger UI) at `http://localhost:8000/docs`.
+#### Backend
+- Framework: FastAPI
 
-## Frontend
+- Server: Uvicorn
 
-The frontend is a modern web application providing the user interface.
+- Database: SQLAlchemy (with SQLite)
 
-### Technologies Used
+- PDF Processing: PyMuPDF
 
-- **React:** JavaScript library for building user interfaces.
-- **TypeScript:** Superset of JavaScript that adds static typing.
-- **Vite:** Fast build tool for modern web projects.
-- **Shadcn/ui:** Reusable UI components.
-- **Tailwind CSS:** Utility-first CSS framework.
-- **React Query:** For data fetching and state management.
-- **React Router DOM:** For client-side routing.
+- AI/ML: Sentence Transformers, FAISS, LangChain
 
-### Key Features
+- Audio: Requests, Google Cloud TTS, pydub
 
-- User-friendly interface for uploading and viewing documents.
-- Display of AI-generated insights.
-- Management of document collections.
-- Responsive design.
+#### Frontend
+- Framework: React (with TypeScript)
 
-## Contributing
+- Build Tool: Vite
 
+- UI: Shadcn/ui & Tailwind CSS
+
+- Data Fetching: React Query
+
+- Routing: React Router DOM
+
+### ⚠️ A Note on PDF Highlighting
+A core goal for this project was to automatically highlight recommended sections directly within the Adobe PDF Viewer. We explored two primary methods to achieve this:
+
+**Text-Based Search:**  Using the Adobe Embed API's built-in text search functionality.
+
+**Annotation API:** Programmatically adding a highlight annotation using the bounding box coordinates of the section text.
+
+Unfortunately, due to complexities in accurately mapping the extracted text coordinates to the viewer's coordinate system, we were unable to implement this feature with the reliability required for a seamless user experience within the hackathon's timeframe.
+
+As a fallback, the application currently alerts the user that the highlighting feature is not yet functional. Implementing a robust highlighting solution is a top priority for future development.
+
+## 🤝 Contributing
 Contributions are welcome! Please follow these steps:
 
-1.  Fork the repository.
-2.  Create a new branch (`git checkout -b feature/your-feature-name`).
-3.  Make your changes.
-4.  Commit your changes (`git commit -m 'feat: Add new feature'`).
-5.  Push to the branch (`git push origin feature/your-feature-name`).
-6.  Open a Pull Request.
+1. Fork the repository.
 
-## License
+2. Create a new feature branch (git checkout -b feature/your-feature-name).
 
-This project is licensed under the MIT License - see the `LICENSE` file for details.
+3. Make your changes and commit them (git commit -m 'feat: Add new feature').
+
+4. Push to your branch (git push origin feature/your-feature-name).
+
+5. Open a Pull Request.
+
+# Thank You From Team MACHINE MAVERICKS
+- Ayush Yadav
+- Animesh Kumar Rai
+- Meesam Raza
