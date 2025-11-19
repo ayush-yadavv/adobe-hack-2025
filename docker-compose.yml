@@ -7,6 +7,8 @@ services:
       context: ./backend
       target: app # This tells Docker to build the 'app' stage from the Dockerfile
     restart: always
+    env_file:
+      - ./backend/.env
     ports:
       - "8000:8000" # Backend API runs on 8000
     environment:

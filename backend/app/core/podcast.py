@@ -196,7 +196,7 @@ def _generate_azure_tts(text, output_file, voice=None):
     tts_headers = {
         "api-key": api_key,
         "Content-Type": "application/json",
-    }
+    }           
 
     json_body = {
         "model": deployment_name,

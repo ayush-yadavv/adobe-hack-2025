@@ -42,7 +42,7 @@ These instructions will get you a copy of the project up and running on your loc
     ```
 
 2.  **Environment Variables:**
-    Create a `.env` file in the root directory of the project (where `docker-compose.yml` is located) and add the necessary environment variables. At a minimum, you'll need:
+    Create a `.env` file in the `backend` directory of the project and add the necessary environment variables. At a minimum, you'll need:
 
     ```
     LLM_PROVIDER= # e.g., "google" or "openai"

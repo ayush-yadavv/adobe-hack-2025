@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 logger.debug("Application startup: Initializing FastAPI application.")
 
 # Load environment variables from .env file, specifying the path
-# Assumes .env is in the 'backend' directory relative to the project root
-dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".env") 
+# Assumes .env is in the 'backend' directory
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env") 
 load_dotenv(dotenv_path=dotenv_path)
 
 # Debugging: Check if GOOGLE_API_KEY is loaded
@@ -66,8 +66,9 @@ app.add_middleware(
 logger.debug("Main: CORS middleware added.")
 
 # Mount static files directory
-app.mount("/storage", StaticFiles(directory="/app/storage"), name="storage")
-logger.debug("Main: Mounted static files directory at '/storage'")
+storage_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "storage")
+app.mount("/storage", StaticFiles(directory=storage_path), name="storage")
+logger.debug(f"Main: Mounted static files directory at '{storage_path}'")
 
 # --- Event Handlers ---
 @app.on_event("startup")

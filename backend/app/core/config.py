@@ -4,7 +4,7 @@ from typing import List, Optional
 
 # Get the root path of the project (the 'backend' directory)
 # This assumes the script is run from the 'backend' directory.
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 class Settings(BaseSettings):
     """
