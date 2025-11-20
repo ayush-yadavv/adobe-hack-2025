@@ -115,7 +115,7 @@ export interface RecommendationItem {
   section_title: string;
   pageNumber: number; // Assuming this comes from the backend or is derived
   snippetText: string; // Assuming this comes from the backend or is derived
-  // Properties added for frontend rendering
+  snippet_explanation?: string; // Added optional field
   title: string;
   explanation: string;
   quadPoints: number[][] | null;

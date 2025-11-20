@@ -55,26 +55,56 @@ class StorageService:
             # Sanitize filename to prevent directory traversal attacks
             if file.filename is None:
                 raise ValueError("Uploaded file must have a filename.")
+                
             safe_filename = Path(file.filename).name
+            logger.debug(f"Original filename: {file.filename}, safe_filename: {safe_filename}")
             
             # Create a unique identifier to prevent filename collisions
             unique_id = uuid.uuid4().hex
             unique_filename = f"{unique_id}_{safe_filename}"
+            logger.debug(f"Generated unique filename: {unique_filename}")
             
             # Organize uploads by collection
             collection_dir = self.uploads_dir / collection_id
+            logger.debug(f"Collection directory path: {collection_dir}")
+            
+            # Ensure the directory exists
             collection_dir.mkdir(parents=True, exist_ok=True)
+            logger.debug(f"Directory exists after creation: {collection_dir.exists()}")
             
             file_path = collection_dir / unique_filename
+            logger.debug(f"Full file path: {file_path}")
             
+            # Log before attempting to save
+            logger.info(f"Attempting to save file to: {file_path}")
+            
+            # Save the file
             with file_path.open("wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
+            
+            # Verify the file was saved
+            if not file_path.exists() or file_path.stat().st_size == 0:
+                error_msg = f"Failed to save file: {file_path} (file doesn't exist or is empty)"
+                logger.error(error_msg)
+                raise IOError(error_msg)
                 
-            logger.info(f"Saved uploaded file to: {file_path}")
-            # Return relative path from storage base directory
-            return str(file_path.relative_to(self.base_path))
+            logger.info(f"Successfully saved uploaded file to: {file_path}")
+            logger.info(f"File size: {file_path.stat().st_size} bytes")
+            
+            # Get relative path for storage
+            relative_path = str(file_path.relative_to(self.base_path))
+            logger.info(f"Relative path for storage: {relative_path}")
+            
+            return relative_path
+            
+        except Exception as e:
+            logger.error(f"Error saving file: {str(e)}", exc_info=True)
+            raise
+            
         finally:
-            file.file.close()
+            # Ensure the file is properly closed
+            if hasattr(file, 'file') and hasattr(file.file, 'close'):
+                file.file.close()
 
     def get_file_url(self, relative_path: str) -> str:
         """
@@ -86,10 +116,30 @@ class StorageService:
         Returns:
             Full URL accessible via the web server
         """
-        # Convert Windows paths to URL-friendly forward slashes
-        url_path = relative_path.replace('\\', '/')
-        base_url = settings.BASE_URL.rstrip('/')
-        return f"{base_url}/storage/{url_path}"
+        try:
+            # Ensure the relative path is a string and normalize path separators
+            if not isinstance(relative_path, str):
+                raise ValueError(f"Relative path must be a string, got {type(relative_path)}")
+                
+            # Convert Windows path separators to forward slashes and normalize
+            url_path = str(relative_path).replace('\\', '/').replace('//', '/')
+            
+            # Ensure the path doesn't start with a slash to avoid double slashes
+            if url_path.startswith('/'):
+                url_path = url_path[1:]
+                
+            # Ensure the base URL doesn't end with a slash
+            base_url = settings.BASE_URL.rstrip('/')
+            
+            # Construct the full URL
+            full_url = f"{base_url}/storage/{url_path}"
+            
+            logger.debug(f"Generated file URL for {relative_path} -> {full_url}")
+            return full_url
+            
+        except Exception as e:
+            logger.error(f"Error generating file URL for {relative_path}: {str(e)}", exc_info=True)
+            raise
 
     def get_absolute_path(self, relative_path: str) -> Path:
         """
@@ -100,8 +150,37 @@ class StorageService:
 
         Returns:
             Absolute Path object
+
+        Raises:
+            ValueError: If the relative path is invalid or tries to access outside the base directory
+            FileNotFoundError: If the resulting path doesn't exist
         """
-        return self.base_path / relative_path
+        try:
+            if not relative_path:
+                raise ValueError("Relative path cannot be empty")
+                
+            # Convert to string in case a Path object is passed
+            rel_path_str = str(relative_path)
+            
+            # Normalize the path to prevent directory traversal
+            normalized_path = (self.base_path / rel_path_str).resolve()
+            
+            # Ensure the path is within the base directory for security
+            try:
+                normalized_path.relative_to(self.base_path.resolve())
+            except ValueError:
+                raise ValueError(f"Path '{rel_path_str}' is outside the base directory")
+            
+            # Check if the file exists
+            if not normalized_path.exists():
+                raise FileNotFoundError(f"File not found: {normalized_path}")
+                
+            logger.debug(f"Resolved absolute path for '{rel_path_str}' -> {normalized_path}")
+            return normalized_path
+            
+        except Exception as e:
+            logger.error(f"Error resolving absolute path for '{relative_path}': {str(e)}", exc_info=True)
+            raise
 
     def save_artifact(self, data: bytes, artifact_name: str) -> str:
         """

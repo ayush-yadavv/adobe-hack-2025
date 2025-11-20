@@ -1,4 +1,9 @@
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,9 +22,8 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  FileText,
   Search,
-  Trash2,
-  Upload,
   User,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -28,26 +32,77 @@ import { toast } from "sonner";
 import { Collection, Document, RecommendationItem } from "../types";
 
 interface UploadZoneProps {
-  collections: Collection[];
+  collections?: Collection[];
   preSelectedCollectionId?: string;
-  externalUploadHandler: (
+  onUpload?: (
+    files: File[],
+    collectionId?: string,
+    newCollectionName?: string
+  ) => void;
+  externalUploadHandler?: (
     files: File[],
     collectionId?: string,
     newCollectionName?: string
   ) => Promise<void>;
-  onUploadSuccess?: () => void; // New prop for success callback
+  isHomepageDropzone?: boolean;
+  onUploadSuccess?: () => void;
   className?: string;
 }
 
-// Define your Adobe Client ID here
-const ADOBE_EMBED_API_KEY = import.meta.env.ADOBE_EMBED_API_KEY;
+// Adobe PDF Embed API configuration
+const ADOBE_EMBED_API_KEY =
+  import.meta.env.VITE_ADOBE_EMBED_API_KEY || "YOUR_DEFAULT_CLIENT_ID";
 
+// Define the AdobeDC.View type
+interface AdobeDCView {
+  previewFile: (filePromise: any, config: any) => Promise<any>;
+  getAPIs: () => any;
+  getAnnotationManager: () => any;
+  registerCallback: (
+    type: string,
+    callback: (event: any) => void,
+    options?: any
+  ) => void;
+  unregisterCallback: (callback: any) => void;
+  setViewerOptions: (options: any) => void;
+  destroy: () => void;
+  Enum: {
+    CallbackType: {
+      EVENT_LISTENER: string;
+    };
+  };
+  CallbackType: {
+    EVENT_LISTENER: string;
+  };
+  EVENT_LISTENER: string;
+}
+
+interface AdobeDC {
+  View: {
+    new (config: any): AdobeDCView;
+    Enum: {
+      CallbackType: {
+        EVENT_LISTENER: string;
+      };
+    };
+  };
+  destroy: () => void;
+  ViewSDKClient: any;
+  ViewSettings: any;
+}
+
+// Extend the Window interface to include AdobeDC
 declare global {
   interface Window {
     AdobeDC: {
-      View: new (options: { clientId: string; divId: string }) => {
-        previewFile: (filePromise: unknown, viewerOptions: unknown) => void;
-        destroy: () => void;
+      new (config: { clientId: string }): AdobeDC;
+      View: {
+        new (config: any): AdobeDCView;
+        Enum: {
+          CallbackType: {
+            EVENT_LISTENER: string;
+          };
+        };
       };
     };
   }
@@ -73,10 +128,16 @@ export default function ReaderPage() {
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false); // State for left sidebar collapse
   const [showSearchBar, setShowSearchBar] = useState(false); // State for search bar visibility
   const [searchQuery, setSearchQuery] = useState(""); // State for search query
-  const [isPersonaRecommendationDialogOpen, setIsPersonaRecommendationDialogOpen] = useState(false);
+  const [
+    isPersonaRecommendationDialogOpen,
+    setIsPersonaRecommendationDialogOpen,
+  ] = useState(false);
   const [personaInput, setPersonaInput] = useState("");
   const [jobToBeDoneInput, setJobToBeDoneInput] = useState("");
-  const [isGeneratingPersonaRecommendations, setIsGeneratingPersonaRecommendations] = useState(false);
+  const [
+    isGeneratingPersonaRecommendations,
+    setIsGeneratingPersonaRecommendations,
+  ] = useState(false);
   const [selectedText, setSelectedText] = useState<string | null>(null); // State for selected text
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>(
     []
@@ -86,14 +147,20 @@ export default function ReaderPage() {
   const [maxDuration, setMaxDuration] = useState(240);
   const [isGeneratingPodcast, setIsGeneratingPodcast] = useState(false);
   const [generatedPodcast, setGeneratedPodcast] = useState<any>(null);
-  const [rightSidebarActiveTab, setRightSidebarActiveTab] = useState<"recommendations" | "podcast" | "insights">("insights");
+  const [rightSidebarActiveTab, setRightSidebarActiveTab] = useState<
+    "recommendations" | "podcast" | "insights"
+  >("insights");
   const [showPodcastTabButton, setShowPodcastTabButton] = useState(false);
-  const [showRecommendationsTabButton, setShowRecommendationsTabButton] = useState(false);
+  const [showRecommendationsTabButton, setShowRecommendationsTabButton] =
+    useState(true); // Set to true by default to ensure tab is visible
 
-  const [selectedRecommendationId, setSelectedRecommendationId] = useState<string | null>(null); // New state for selected recommendation
+  const [selectedRecommendationId, setSelectedRecommendationId] = useState<
+    string | null
+  >(null); // New state for selected recommendation
   const [insightsData, setInsightsData] = useState<Insight[]>([]);
   const [isInsightsLoading, setIsInsightsLoading] = useState(false);
-  const [isRecommendationsLoading, setIsRecommendationsLoading] = useState(false);
+  const [isRecommendationsLoading, setIsRecommendationsLoading] =
+    useState(false);
 
   interface Insight {
     type: string;
@@ -102,8 +169,8 @@ export default function ReaderPage() {
   }
 
   const adobeDCViewInstancesRef = useRef<
-    Map<string, { view: Window["AdobeDC"]["View"]; apis: any; adobeViewer: any }>
-  >(new Map()); // Change to Map
+    Map<string, { view: AdobeDCView; apis: any; adobeViewer: any }>
+  >(new Map());
 
   // Function to re-fetch documents for the current collection
   const refreshDocumentsInCollection = useCallback(async (): Promise<
@@ -192,172 +259,235 @@ export default function ReaderPage() {
 
   // Effect to load Adobe PDF Embed API script and set SDK ready state
   useEffect(() => {
-    const script = window.document.createElement("script");
+    // Check if script is already loaded
+    const existingScript = document.querySelector(
+      'script[src*="documentcloud.adobe.com/view-sdk"]'
+    );
+
+    if (existingScript) {
+      if (window.AdobeDC) {
+        setIsAdobeSDKReady(true);
+        return;
+      }
+
+      // If script is loaded but AdobeDC is not available, try again after a short delay
+      const checkAdobeDC = () => {
+        if (window.AdobeDC) {
+          console.log("AdobeDC is now available");
+          setIsAdobeSDKReady(true);
+        } else {
+          setTimeout(checkAdobeDC, 100);
+        }
+      };
+      checkAdobeDC();
+      return;
+    }
+
+    const script = document.createElement("script");
     script.src = "https://documentcloud.adobe.com/view-sdk/main.js";
     script.async = true;
-    script.onload = () => {
-      let attempts = 0;
-      const maxAttempts = 30; // Try for up to 3 seconds (30 * 100ms)
-      const interval = setInterval(() => {
+    script.id = "adobe-pdf-embed-api-script";
+
+    const onScriptLoad = () => {
+      // Wait for AdobeDC to be available
+      const checkAdobeDC = () => {
         if (window.AdobeDC) {
-          clearInterval(interval);
-          console.log("window.AdobeDC is now available.");
-          setIsAdobeSDKReady(true); // Set SDK ready state
+          console.log("Adobe Document Services PDF Embed API loaded and ready");
+          setIsAdobeSDKReady(true);
         } else {
-          attempts++;
-          if (attempts >= maxAttempts) {
-            clearInterval(interval);
-            console.error(
-              "window.AdobeDC not available after multiple attempts. Aborting initialization."
-            );
-          }
+          setTimeout(checkAdobeDC, 100);
         }
-      }, 100);
+      };
+      checkAdobeDC();
     };
-    window.document.body.appendChild(script);
+
+    const onScriptError = (error: any) => {
+      console.error("Error loading Adobe PDF Embed API:", error);
+      toast.error("Failed to load PDF viewer. Please try again later.");
+    };
+
+    script.addEventListener("load", onScriptLoad);
+    script.addEventListener("error", onScriptError);
+
+    document.body.appendChild(script);
 
     return () => {
-      if (window.document.body.contains(script)) {
-        window.document.body.removeChild(script);
-      }
+      script.removeEventListener("load", onScriptLoad);
+      script.removeEventListener("error", onScriptError);
+      // Don't remove the script from the DOM to prevent multiple reloads
     };
-  }, []); // Empty dependency array: runs once on mount
+  }, []);
 
   // Effect to initialize AdobeDC View and preview PDF when SDK is ready and activeTab changes
   useEffect(() => {
-    if (isAdobeSDKReady && activeTab) {
-      const currentDoc = openTabs.find((tab) => tab.id === activeTab);
-      if (currentDoc && currentDoc.docUrl) {
-        const viewerDivId = `adobe-dc-view-${currentDoc.id}`; // Unique divId
-        const adobeDiv = document.getElementById(viewerDivId);
-
-        if (adobeDiv) {
-          const viewerData = adobeDCViewInstancesRef.current.get(currentDoc.id);
-          let adobeDCViewInstance: Window["AdobeDC"]["View"];
-
-          if (!viewerData || !viewerData.view) {
-            // Initialize viewer for this tab if it's not already initialized
-            adobeDCViewInstance = new window.AdobeDC.View({
-              clientId: ADOBE_EMBED_API_KEY,
-              divId: viewerDivId, // Use unique divId
-            });
-            // Store the view instance temporarily to get APIs
-            adobeDCViewInstancesRef.current.set(currentDoc.id, {
-              view: adobeDCViewInstance,
-              apis: null,
-            });
-            console.log(`AdobeDC View initialized for ${currentDoc.id}.`);
-          } else {
-            adobeDCViewInstance = viewerData.view;
-          }
-
-          console.log("Attempting to preview PDF with URL:", currentDoc.docUrl);
-          const previewOptions = {
-            embedMode: "SIZED_CONTAINER",
-            defaultViewMode: "FIT_WIDTH",
-            enableSearchAPIs: true, // Enable Search APIs
-            enableAnnotationAPIs: true, // Enable Annotation APIs
-          };
-          console.log("Adobe preview options:", previewOptions);
-          const previewFilePromise = adobeDCViewInstance.previewFile(
-            {
-              content: {
-                location: {
-                  url: currentDoc.docUrl,
-                },
-              },
-              metaData: {
-                fileName: currentDoc.title,
-                id: currentDoc.id, // Add document ID for annotations
-              },
-            },
-            previewOptions
-          );
-
-          previewFilePromise
-            .then((adobeViewer) => {
-              console.log(
-                "previewFilePromise resolved. adobeViewer:",
-                adobeViewer
-              );
-              // Store adobeViewer directly
-              adobeDCViewInstancesRef.current.set(currentDoc.id, {
-                view: adobeDCViewInstance, // Keep the view instance
-                apis: null, // Will be updated below
-                adobeViewer: adobeViewer, // Store the adobeViewer object
-              });
-
-              adobeViewer
-                .getAPIs()
-                .then((apis: any) => {
-                  console.log("getAPIs resolved. apis:", apis);
-                  // Update the stored entry with the apis object
-                  const currentViewerData = adobeDCViewInstancesRef.current.get(
-                    currentDoc.id
-                  );
-                  if (currentViewerData) {
-                    adobeDCViewInstancesRef.current.set(currentDoc.id, {
-                      ...currentViewerData,
-                      apis,
-                    });
-                  }
-
-                  // Register event listener for text selection
-                  adobeDCViewInstance.registerCallback(
-                    window.AdobeDC.View.Enum.CallbackType.EVENT_LISTENER,
-                    (event: any) => {
-                      if (event.type === "PREVIEW_SELECTION_END") {
-                        console.log(
-                          "PREVIEW_SELECTION_END event triggered.",
-                          event
-                        );
-                        apis
-                          .getSelectedContent()
-                          .then((result: any) => {
-                            console.log("Selected text:", result);
-                            setSelectedText(result.data);
-                            setShowRecommendationsTabButton(true);
-                            setRightSidebarActiveTab("recommendations");
-                          })
-                          .catch((error: any) =>
-                            console.error(
-                              "Error getting selected content:",
-                              error
-                            )
-                          );
-                      }
-                    },
-                    { enableFilePreviewEvents: true }
-                  );
-                })
-                .catch((error: any) =>
-                  console.error("Error getting APIs:", error)
-                );
-            })
-            .catch((error: any) =>
-              console.error("Error previewing file:", error)
-            );
-        } else {
-          console.error(
-            `Viewer div ${viewerDivId} not found for activeTab:`,
-            activeTab
-          );
-        }
-      } else {
-        console.warn(
-          "No current document or docUrl found for activeTab:",
-          activeTab,
-          currentDoc
-        );
-      }
-    } else {
-      console.warn(
-        "activeTab is null or Adobe SDK not ready. Waiting for SDK.",
-        activeTab,
-        isAdobeSDKReady
-      );
+    if (!isAdobeSDKReady || !activeTab) {
+      console.warn("Adobe SDK not ready or no active tab");
+      return;
     }
-  }, [activeTab, openTabs, isAdobeSDKReady]); // Depends on activeTab and SDK ready state
+
+    const currentDoc = openTabs.find((tab) => tab.id === activeTab);
+    if (!currentDoc?.docUrl) {
+      console.warn("No document URL found for active tab");
+      return;
+    }
+
+    const viewerDivId = `adobe-dc-view-${currentDoc.id}`;
+    const adobeDiv = document.getElementById(viewerDivId);
+
+    if (!adobeDiv) {
+      console.error(`Viewer div ${viewerDivId} not found`);
+      return;
+    }
+
+    // Clear any existing content in the div
+    adobeDiv.innerHTML = "";
+
+    // Double-check AdobeDC is available
+    if (!window.AdobeDC) {
+      console.error("AdobeDC is not available, resetting SDK ready state");
+      setIsAdobeSDKReady(false);
+      return;
+    }
+
+    try {
+      // Create a new viewer instance with proper error handling
+      let adobeDC;
+      try {
+        adobeDC = new window.AdobeDC.View({
+          clientId: ADOBE_EMBED_API_KEY,
+          divId: viewerDivId,
+        });
+      } catch (error) {
+        console.error("Error creating AdobeDC.View instance:", error);
+        toast.error(
+          "Failed to initialize PDF viewer. Please refresh the page."
+        );
+        return;
+      }
+
+      // Preview file configuration
+      const previewConfig = {
+        content: {
+          location: {
+            url: currentDoc.docUrl,
+          },
+        },
+        metaData: {
+          fileName: currentDoc.title || "Document",
+          id: currentDoc.id,
+        },
+      };
+
+      // Viewer configuration
+      const viewerConfig = {
+        embedMode: "SIZED_CONTAINER",
+        defaultViewMode: "FIT_WIDTH",
+        showLeftHandPanel: true,
+        showDownloadPDF: true,
+        showPrintPDF: true,
+        showAnnotationTools: true,
+        enableFormFilling: true,
+        showBookmarks: true,
+        showThumbnails: true,
+        showZoomControl: true,
+      };
+
+      // Preview the file with viewer configuration
+      adobeDC
+        .previewFile(previewConfig, viewerConfig)
+        .then((adobeViewer: any) => {
+          console.log("PDF preview successful");
+
+          // Store the viewer instance for later use
+          adobeDCViewInstancesRef.current.set(currentDoc.id, {
+            view: adobeDC,
+            apis: null,
+            adobeViewer,
+          });
+
+          // Register event listeners
+          const callbackId = adobeDC.registerCallback(
+            window.AdobeDC.View.Enum.CallbackType.EVENT_LISTENER,
+            (event: any) => {
+              console.log("Adobe DC View event:", event);
+
+              // Handle text selection
+              if (event.type === "PREVIEW_SELECTION_END") {
+                adobeViewer
+                  .getAPIs()
+                  .then((apis: any) => {
+                    return apis.getSelectedContent();
+                  })
+                  .then((result: any) => {
+                    console.log("Selected text:", result);
+                    setSelectedText(result.data);
+                    setShowRecommendationsTabButton(true);
+                    setRightSidebarActiveTab("recommendations");
+                  })
+                  .catch((error: any) => {
+                    console.error("Error getting selected content:", error);
+                  });
+              }
+            },
+            {
+              // Enable file preview events
+              enableFilePreviewEvents: true,
+              // Enable PDF analytics
+              enablePDFAnalytics: true,
+            }
+          );
+
+          // Get and store the APIs
+          adobeViewer
+            .getAPIs()
+            .then((apis: any) => {
+              const currentViewerData = adobeDCViewInstancesRef.current.get(
+                currentDoc.id
+              );
+              if (currentViewerData) {
+                adobeDCViewInstancesRef.current.set(currentDoc.id, {
+                  ...currentViewerData,
+                  apis,
+                });
+              }
+            })
+            .catch((error: any) => {
+              console.error("Error getting APIs:", error);
+            });
+        })
+        .catch((error: any) => {
+          console.error("Error previewing file:", error);
+          toast.error("Failed to load PDF. Please try again.");
+        });
+    } catch (error) {
+      console.error("Error initializing Adobe PDF Embed API:", error);
+      toast.error("Failed to initialize PDF viewer.");
+    }
+
+    // Cleanup function
+    return () => {
+      const viewerData = adobeDCViewInstancesRef.current.get(currentDoc.id);
+      if (viewerData?.view) {
+        try {
+          viewerData.view.destroy();
+          console.log(`AdobeDC View destroyed for ${currentDoc.id}`);
+        } catch (error) {
+          console.error("Error destroying AdobeDC View:", error);
+        }
+      }
+    };
+  }, [isAdobeSDKReady, activeTab, openTabs]);
+
+  useEffect(() => {
+    console.log("Current rightSidebarActiveTab:", rightSidebarActiveTab);
+  }, [rightSidebarActiveTab]);
+
+  useEffect(() => {
+    console.log(
+      "selectedRecommendationId before Generate Podcast button:",
+      selectedRecommendationId
+    );
+  }, [selectedRecommendationId]);
 
   const openDocumentInTab = useCallback(
     (doc: Document) => {
@@ -389,24 +519,25 @@ export default function ReaderPage() {
   const closeTab = (id: string) => {
     setOpenTabs((tabs) => {
       const updatedTabs = tabs.filter((tab) => tab.id !== id);
+
       // Destroy the AdobeDC.View instance for the closed tab
       const viewerData = adobeDCViewInstancesRef.current.get(id);
-      if (
-        viewerData &&
-        viewerData.view &&
-        typeof viewerData.view.destroy === "function"
-      ) {
-        // Check if destroy method exists on the view instance
-        viewerData.view.destroy(); // Destroy the viewer instance
-        console.log(`AdobeDC View destroyed for ${id}.`);
+      if (viewerData?.view) {
+        try {
+          viewerData.view.destroy();
+          console.log(`AdobeDC View destroyed for ${id}.`);
+        } catch (error) {
+          console.error(`Error destroying AdobeDC View for ${id}:`, error);
+        } finally {
+          adobeDCViewInstancesRef.current.delete(id);
+        }
       }
-      adobeDCViewInstancesRef.current.delete(id); // Remove from map
 
-      if (activeTab === id && updatedTabs.length > 0) {
-        setActiveTab(updatedTabs[0].id);
-      } else if (activeTab === id && updatedTabs.length === 0) {
-        setActiveTab(null);
+      // Update active tab if needed
+      if (activeTab === id) {
+        setActiveTab(updatedTabs[0]?.id || null);
       }
+
       return updatedTabs;
     });
   };
@@ -425,7 +556,8 @@ export default function ReaderPage() {
 
         // Retrieve the stored apis directly
         const viewerData = adobeDCViewInstancesRef.current.get(doc_id);
-        if (viewerData && viewerData.adobeViewer) { // Check for adobeViewer
+        if (viewerData && viewerData.adobeViewer) {
+          // Check for adobeViewer
           const adobeViewerInstance = viewerData.adobeViewer; // Get the stored adobeViewer
           viewerData.apis
             .gotoLocation(pageNumber) // gotoLocation is on apis
@@ -446,15 +578,26 @@ export default function ReaderPage() {
 
                 console.log("Attempting to add annotations:", annotations);
 
-                adobeViewerInstance.getAnnotationManager() // <--- Changed to adobeViewerInstance
+                adobeViewerInstance
+                  .getAnnotationManager() // <--- Changed to adobeViewerInstance
                   .then((annotationManager: any) => {
-                    annotationManager.addAnnotations(annotations)
+                    annotationManager
+                      .addAnnotations(annotations)
                       .then(() => console.log("Highlights added successfully!"))
                       .catch((error: any) => {
                         console.error("Error adding highlights:", error);
-                        if (error.message && error.message.includes('APIs not allowed on this PDF.')) {
-                          toast.info(`Highlighting not available for this document. Snippet: "${snippetText}"`);
-                          toast.error("Highlighting is not allowed on this PDF due to document restrictions.");
+                        if (
+                          error.message &&
+                          error.message.includes(
+                            "APIs not allowed on this PDF."
+                          )
+                        ) {
+                          toast.info(
+                            `Highlighting not available for this document. Snippet: "${snippetText}"`
+                          );
+                          toast.error(
+                            "Highlighting is not allowed on this PDF due to document restrictions."
+                          );
                         } else {
                           toast.error("Failed to add highlights.");
                         }
@@ -510,7 +653,9 @@ export default function ReaderPage() {
         const errorData = await response.json();
         console.error("Error generating podcast:", errorData);
         throw new Error(
-          `Failed to generate podcast: ${errorData.detail || response.statusText}`
+          `Failed to generate podcast: ${
+            errorData.detail || response.statusText
+          }`
         );
       }
 
@@ -519,7 +664,9 @@ export default function ReaderPage() {
       toast.success("Podcast generated successfully!");
     } catch (error: any) {
       console.error("Error generating podcast:", error);
-      toast.error(error.message || "An unknown error occurred during podcast generation.");
+      toast.error(
+        error.message || "An unknown error occurred during podcast generation."
+      );
     } finally {
       setIsGeneratingPodcast(false);
     }
@@ -568,15 +715,29 @@ export default function ReaderPage() {
         pageNumber: item.page_number,
         snippetText: item.snippet_text,
         quadPoints: item.quad_points,
+        item_id:
+          item.item_id || `item-${Math.random().toString(36).substr(2, 9)}`,
       }));
+
+      console.log("Setting recommendations:", mappedRecommendations);
       setRecommendations(mappedRecommendations);
+
       if (result.recommendation_id) {
+        console.log(
+          "Setting selectedRecommendationId to:",
+          result.recommendation_id
+        );
         setSelectedRecommendationId(result.recommendation_id);
-        console.log("selectedRecommendationId set to:", result.recommendation_id);
       } else {
+        console.log("No recommendation_id in response, setting to null");
         setSelectedRecommendationId(null);
-        console.log("selectedRecommendationId set to null (no recommendation_id in backend response).");
       }
+
+      // Show the recommendations tab and switch to it
+      console.log("Showing recommendations tab and switching to it");
+      setShowRecommendationsTabButton(true);
+      setRightSidebarActiveTab("recommendations");
+
       toast.success("Persona-based recommendations generated!");
       setIsPersonaRecommendationDialogOpen(false); // Close the dialog
       setPersonaInput(""); // Clear input fields
@@ -588,7 +749,15 @@ export default function ReaderPage() {
     } finally {
       setIsGeneratingPersonaRecommendations(false); // Reset loading state
     }
-  }, [personaInput, jobToBeDoneInput, collectionId, setRecommendations, setSelectedRecommendationId, setShowRecommendationsTabButton, setRightSidebarActiveTab]);
+  }, [
+    personaInput,
+    jobToBeDoneInput,
+    collectionId,
+    setRecommendations,
+    setSelectedRecommendationId,
+    setShowRecommendationsTabButton,
+    setRightSidebarActiveTab,
+  ]);
 
   // Handle upload from UploadZone
   const handleReaderPageUpload = useCallback(
@@ -723,7 +892,9 @@ export default function ReaderPage() {
     const fetchInsights = async () => {
       setIsInsightsLoading(true);
       try {
-        const response = await fetch(`http://localhost:8000/api/v1/insights/generate?col_id=${collectionId}`);
+        const response = await fetch(
+          `http://localhost:8000/api/v1/insights/generate?col_id=${collectionId}`
+        );
         console.log("Insights API response status:", response.status);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -753,9 +924,6 @@ export default function ReaderPage() {
 
   return (
     <div className="flex h-screen bg-background text-foreground relative">
-      {console.log("Current rightSidebarActiveTab:", rightSidebarActiveTab)}
-      {" "}
-      {/* Added relative to main div */}
       {/* Left Sidebar */}
       <div
         className={cn(
@@ -837,7 +1005,9 @@ export default function ReaderPage() {
                   onClick={handleGetPersonaRecommendations}
                   disabled={isGeneratingPersonaRecommendations}
                 >
-                  {isGeneratingPersonaRecommendations ? "Getting Recommendations..." : "Get Recommendations"}
+                  {isGeneratingPersonaRecommendations
+                    ? "Getting Recommendations..."
+                    : "Get Recommendations"}
                 </Button>
               </DialogContent>
             </Dialog>
@@ -893,7 +1063,7 @@ export default function ReaderPage() {
                               : doc.docTitle}
                           </p>
                         </div>
-                        {openTabs.some(tab => tab.id === doc.id) ? (
+                        {openTabs.some((tab) => tab.id === doc.id) ? (
                           <Badge variant="secondary" className="ml-2">
                             Opened
                           </Badge>
@@ -934,7 +1104,6 @@ export default function ReaderPage() {
           </>
         )}
       </div>
-      
       {/* Main Viewer */}
       <div className="flex-1 flex flex-col bg-muted/40 min-w-0 relative">
         {/* Document Tabs */}
@@ -984,24 +1153,57 @@ export default function ReaderPage() {
           )}
         </Button>
 
-        {/* Viewer Placeholder */}
+        {/* PDF Viewer Container */}
         <div className="flex-1 flex items-center justify-center text-muted-foreground relative overflow-hidden">
           {openTabs.map((tab) => (
             <div
               key={tab.id}
               id={`adobe-dc-view-${tab.id}`}
-              className="w-full h-full absolute top-0 left-0"
-              style={{ display: activeTab === tab.id ? "block" : "none" }}
-            ></div>
+              className={`w-full h-full absolute top-0 left-0 ${
+                activeTab === tab.id ? "block" : "hidden"
+              }`}
+              style={{
+                minHeight: "100%",
+                backgroundColor: "#f5f5f5",
+              }}
+            >
+              {isAdobeSDKReady && activeTab === tab.id && !tab.docUrl && (
+                <div className="w-full h-full flex items-center justify-center">
+                  <p>Loading document viewer...</p>
+                </div>
+              )}
+            </div>
           ))}
-          {!activeTab && "Select a document to view"}
+
+          {!activeTab && (
+            <div className="flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
+              <FileText className="h-16 w-16 text-muted-foreground/50 mb-4" />
+              <h3 className="text-lg font-medium mb-2">No document selected</h3>
+              <p className="text-muted-foreground text-sm">
+                Select a document from the sidebar or upload a new one to get
+                started.
+              </p>
+            </div>
+          )}
+
+          {/* Loading indicator */}
+          {!isAdobeSDKReady && activeTab && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+              <div className="flex flex-col items-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                <p>Loading PDF viewer...</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       {/* Right Sidebar */}
       <div className="w-80 flex-shrink-0 border-l border-border flex flex-col">
         <div className="p-4 border-b border-border flex overflow-x-auto whitespace-nowrap gap-2 tab-scrollbar">
           <Button
-            variant={rightSidebarActiveTab === "insights" ? "secondary" : "ghost"}
+            variant={
+              rightSidebarActiveTab === "insights" ? "secondary" : "ghost"
+            }
             onClick={() => setRightSidebarActiveTab("insights")}
             className="flex-shrink-0"
           >
@@ -1009,7 +1211,11 @@ export default function ReaderPage() {
           </Button>
           {showRecommendationsTabButton && (
             <Button
-              variant={rightSidebarActiveTab === "recommendations" ? "secondary" : "ghost"}
+              variant={
+                rightSidebarActiveTab === "recommendations"
+                  ? "secondary"
+                  : "ghost"
+              }
               onClick={() => setRightSidebarActiveTab("recommendations")}
               className="flex-shrink-0"
             >
@@ -1018,7 +1224,9 @@ export default function ReaderPage() {
           )}
           {showPodcastTabButton && (
             <Button
-              variant={rightSidebarActiveTab === "podcast" ? "secondary" : "ghost"}
+              variant={
+                rightSidebarActiveTab === "podcast" ? "secondary" : "ghost"
+              }
               onClick={() => setRightSidebarActiveTab("podcast")}
               className="flex-shrink-0"
             >
@@ -1033,8 +1241,10 @@ export default function ReaderPage() {
                 return (
                   <div className="flex-1 overflow-y-auto">
                     {recommendations.length > 0 && (
-                      <div className="p-4 border-b border-border"> {/* Changed border-t to border-b */}
-                        {console.log("selectedRecommendationId before Generate Podcast button:", selectedRecommendationId)}
+                      <div className="p-4 border-b border-border">
+                        {" "}
+                        {/* Changed border-t to border-b */}
+                        {/* Moved console.log to useEffect */}
                         <Button
                           className="w-full"
                           size="lg"
@@ -1050,14 +1260,18 @@ export default function ReaderPage() {
                     )}
                     <ScrollArea className="flex-1 p-4">
                       {isRecommendationsLoading ? (
-                        <p className="text-sm text-muted-foreground">Loading recommendations...</p>
+                        <p className="text-sm text-muted-foreground">
+                          Loading recommendations...
+                        </p>
                       ) : recommendations.length > 0 ? (
                         <Accordion type="single" collapsible className="w-full">
                           {recommendations.map((rec, index) => (
-                            <AccordionItem value={rec.item_id} key={index} className="mb-2 border rounded-md">
-                              <AccordionTrigger
-                                className="py-3 px-4 text-left hover:no-underline"
-                              >
+                            <AccordionItem
+                              value={rec.item_id}
+                              key={index}
+                              className="mb-2 border rounded-md"
+                            >
+                              <AccordionTrigger className="py-3 px-4 text-left hover:no-underline">
                                 <div
                                   onClick={(e) => {
                                     e.stopPropagation(); // Prevent Accordion from toggling
@@ -1065,15 +1279,21 @@ export default function ReaderPage() {
                                   }}
                                   className="flex flex-col flex-grow cursor-pointer"
                                 >
-                                  <p className="text-sm font-medium">{rec.title}</p>
+                                  <p className="text-sm font-medium">
+                                    {rec.title}
+                                  </p>
                                   <p className="text-xs text-muted-foreground">
                                     {rec.explanation}
                                   </p>
                                 </div>
                               </AccordionTrigger>
                               <AccordionContent className="px-4 pb-3 text-sm text-muted-foreground">
-                                <p className="font-semibold mb-1">Explanation:</p>
-                                <p className="mb-2">{rec.snippet_explanation}</p>
+                                <p className="font-semibold mb-1">
+                                  Explanation:
+                                </p>
+                                <p className="mb-2">
+                                  {rec.snippet_explanation}
+                                </p>
                                 <p className="font-semibold mb-1">Snippet:</p>
                                 <p>{rec.snippetText}</p>
                               </AccordionContent>
@@ -1082,8 +1302,8 @@ export default function ReaderPage() {
                         </Accordion>
                       ) : (
                         <p className="text-sm text-muted-foreground">
-                          No recommendations yet. Select text in a document to get
-                          recommendations.
+                          No recommendations yet. Select text in a document to
+                          get recommendations.
                         </p>
                       )}
                     </ScrollArea>
@@ -1101,37 +1321,52 @@ export default function ReaderPage() {
                             type="checkbox"
                             id="includeInsights"
                             checked={includeInsights}
-                            onChange={(e) => setIncludeInsights(e.target.checked)}
+                            onChange={(e) =>
+                              setIncludeInsights(e.target.checked)
+                            }
                             className="h-4 w-4"
                           />
-                          <label htmlFor="includeInsights" className="text-sm font-medium">
+                          <label
+                            htmlFor="includeInsights"
+                            className="text-sm font-medium"
+                          >
                             Include Insights
                           </label>
                         </div>
 
                         <div>
-                          <label htmlFor="minDuration" className="text-sm font-medium block mb-1">
+                          <label
+                            htmlFor="minDuration"
+                            className="text-sm font-medium block mb-1"
+                          >
                             Min Duration (seconds)
                           </label>
                           <Input
                             id="minDuration"
                             type="number"
                             value={minDuration}
-                            onChange={(e) => setMinDuration(Number(e.target.value))}
+                            onChange={(e) =>
+                              setMinDuration(Number(e.target.value))
+                            }
                             min="30"
                             max="600"
                           />
                         </div>
 
                         <div>
-                          <label htmlFor="maxDuration" className="text-sm font-medium block mb-1">
+                          <label
+                            htmlFor="maxDuration"
+                            className="text-sm font-medium block mb-1"
+                          >
                             Max Duration (seconds)
                           </label>
                           <Input
                             id="maxDuration"
                             type="number"
                             value={maxDuration}
-                            onChange={(e) => setMaxDuration(Number(e.target.value))}
+                            onChange={(e) =>
+                              setMaxDuration(Number(e.target.value))
+                            }
                             min="30"
                             max="600"
                           />
@@ -1142,29 +1377,48 @@ export default function ReaderPage() {
                           disabled={isGeneratingPodcast}
                           className="w-full"
                         >
-                          {isGeneratingPodcast ? "Generating..." : "Generate Podcast"}
+                          {isGeneratingPodcast
+                            ? "Generating..."
+                            : "Generate Podcast"}
                         </Button>
 
                         {generatedPodcast && (
                           <Card className="mt-4">
                             <CardContent className="p-4">
-                              <h4 className="text-md font-semibold mb-2">Generated Podcast</h4>
-                              <p className="text-sm mb-2">{generatedPodcast.shortDescription}</p>
+                              <h4 className="text-md font-semibold mb-2">
+                                Generated Podcast
+                              </h4>
+                              <p className="text-sm mb-2">
+                                {generatedPodcast.shortDescription}
+                              </p>
                               {generatedPodcast.audioUrl && (
-                                <audio controls src={generatedPodcast.audioUrl} className="w-full mb-2">
-                                  Your browser does not support the audio element.
+                                <audio
+                                  controls
+                                  src={generatedPodcast.audioUrl}
+                                  className="w-full mb-2"
+                                >
+                                  Your browser does not support the audio
+                                  element.
                                 </audio>
                               )}
-                              {generatedPodcast.transcript && generatedPodcast.transcript.length > 0 && (
-                                <div>
-                                  <h5 className="text-sm font-medium mb-1">Transcript:</h5>
-                                  <ScrollArea className="h-32 border rounded-md p-2 text-xs">
-                                    {generatedPodcast.transcript.map((line: any, idx: number) => (
-                                      <p key={idx}><strong>{line.speaker}:</strong> {line.dialogue}</p>
-                                    ))}
-                                  </ScrollArea>
-                                </div>
-                              )}
+                              {generatedPodcast.transcript &&
+                                generatedPodcast.transcript.length > 0 && (
+                                  <div>
+                                    <h5 className="text-sm font-medium mb-1">
+                                      Transcript:
+                                    </h5>
+                                    <ScrollArea className="h-32 border rounded-md p-2 text-xs">
+                                      {generatedPodcast.transcript.map(
+                                        (line: any, idx: number) => (
+                                          <p key={idx}>
+                                            <strong>{line.speaker}:</strong>{" "}
+                                            {line.dialogue}
+                                          </p>
+                                        )
+                                      )}
+                                    </ScrollArea>
+                                  </div>
+                                )}
                             </CardContent>
                           </Card>
                         )}
@@ -1180,18 +1434,22 @@ export default function ReaderPage() {
                 return (
                   <ScrollArea className="flex-1 p-4">
                     {isInsightsLoading ? (
-                      <p className="text-sm text-muted-foreground">Loading insights...</p>
+                      <p className="text-sm text-muted-foreground">
+                        Loading insights...
+                      </p>
                     ) : insightsData.length > 0 ? (
                       insightsData.map((insight, index) => (
                         <Card key={index} className="mb-2">
                           <CardContent className="py-3 px-4 flex items-start space-x-2">
                             {/* Placeholder Icon - Replace with actual icon based on insight type if needed */}
-                            <span className="text-primary mt-1">
-                              💡
-                            </span>
+                            <span className="text-primary mt-1">💡</span>
                             <div>
-                              <p className="text-sm font-bold">{insight.type}</p>
-                              <p className="text-sm text-muted-foreground">{insight.data}</p>
+                              <p className="text-sm font-bold">
+                                {insight.type}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {insight.data}
+                              </p>
                             </div>
                           </CardContent>
                         </Card>
