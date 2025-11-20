@@ -42,18 +42,30 @@ These instructions will get you a copy of the project up and running on your loc
     ```
 
 2.  **Environment Variables:**
-    Create a `.env` file in the `backend` directory of the project and add the necessary environment variables. At a minimum, you'll need:
+    Copy the `.env.example` file from the `backend` directory to `.env` and update the values as needed:
 
-    ```
-    LLM_PROVIDER= # e.g., "google" or "openai"
-    GEMINI_MODEL= # e.g., "gemini-pro" (if using Google LLM)
-    TTS_PROVIDER= # e.g., "google" or "azure"
-    AZURE_TTS_KEY= # Your Azure Text-to-Speech key (if using Azure TTS)
-    AZURE_TTS_ENDPOINT= # Your Azure Text-to-Speech endpoint (if using Azure TTS)
-    GOOGLE_APPLICATION_CREDENTIALS= # Path to your Google Cloud credentials JSON file (if using Google LLM/TTS)
+    ```bash
+    cd backend
+    cp .env.example .env
     ```
 
-    _Note: For `GOOGLE_APPLICATION_CREDENTIALS`, you might need to mount this file into the Docker container. For local development, you can place it in the `backend` directory and update the `docker-compose.yml` volume mount accordingly._
+    Then edit the `.env` file with your configuration. The following environment variables are required:
+
+    ```
+    # LLM Configuration (currently supports Gemini)
+    LLM_PROVIDER="gemini"  # Currently only "gemini" is supported
+    GOOGLE_API_KEY="your-google-api-key"  # Required for Gemini
+    GEMINI_MODEL="gemini-2.5-flash"  # Default model, can be changed if needed
+
+    # Text-to-Speech Configuration (currently supports Azure)
+    TTS_PROVIDER="azure"  # Currently only "azure" is supported
+    AZURE_TTS_KEY="your-azure-tts-key"
+    AZURE_TTS_ENDPOINT="your-azure-tts-endpoint"
+    AZURE_TTS_DEPLOYMENT="your-deployment-name"
+    AZURE_TTS_API_VERSION="2025-03-01-preview"  # Keep this as default unless specified otherwise
+    ```
+
+    _Note: All environment variables are now managed in the `backend/.env` file. The example file (`backend/.env.example`) contains the latest configuration options._
 
 3.  **Frontend Environment Variables:**
     Create a `.env` file inside the `frontend` directory (e.g., `frontend/.env`) and add the `ADOBE_EMBED_API_KEY`. This key is used by the frontend to embed documents.
