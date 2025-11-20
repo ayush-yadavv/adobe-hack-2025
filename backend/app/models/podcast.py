@@ -22,3 +22,4 @@ class Podcast(Base):
     transcript = Column(JSON, nullable=True) # Changed to JSON to store list of dicts for SQLite
     generatedAt = Column(DateTime(timezone=True), server_default=func.now())
     shortDescription = Column(String(255), nullable=True)
+    durationSeconds = Column(Integer, nullable=True)

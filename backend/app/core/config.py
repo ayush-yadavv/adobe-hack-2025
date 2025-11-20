@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # --- Storage Settings ---
     # The base path for local storage. In a containerized environment, this
     # path should be mounted to a persistent volume.
-    STORAGE_PATH: str = os.path.join(PROJECT_ROOT, "storage")
+    STORAGE_PATH: str = os.path.join(os.path.dirname(PROJECT_ROOT), "storage")
     BASE_URL: str = "http://localhost:8000"
     
     # --- ML Model Settings ---

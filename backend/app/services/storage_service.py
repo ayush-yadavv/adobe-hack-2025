@@ -127,9 +127,17 @@ class StorageService:
             # Ensure the path doesn't start with a slash to avoid double slashes
             if url_path.startswith('/'):
                 url_path = url_path[1:]
+            
+            # If the relative path starts with 'storage/', remove it as we add it in the full URL
+            if url_path.startswith('storage/'):
+                url_path = url_path[8:]
                 
             # Ensure the base URL doesn't end with a slash
             base_url = settings.BASE_URL.rstrip('/')
+            
+            # Fix for missing port in BASE_URL if it's just http://localhost
+            if base_url == "http://localhost":
+                base_url = "http://localhost:8000"
             
             # Construct the full URL
             full_url = f"{base_url}/storage/{url_path}"

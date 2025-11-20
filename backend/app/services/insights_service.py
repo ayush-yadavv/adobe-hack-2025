@@ -98,6 +98,14 @@ class InsightService:
                 logger.warning(f"InsightService: Document with ID {doc_id} not found for insight generation.")
                 raise HTTPException(status_code=404, detail=f"Document with ID {doc_id} not found.")
             parent_entity = db_doc
+            
+            # Check for existing insight
+            if db_doc.latestInsightId:
+                existing_insight = db.query(InsightModel).filter(InsightModel.insightId == db_doc.latestInsightId).first()
+                if existing_insight:
+                    logger.info(f"InsightService: Returning existing insight {existing_insight.insightId} for document {doc_id}.")
+                    return InsightInDB.model_validate(existing_insight, from_attributes=True)
+
             context_text = " ".join([item.section_text for item in db_doc.outline_items if item.section_text])
             if not context_text:
                 logger.warning(f"InsightService: No extractable content found for document {doc_id} for insights.")
@@ -116,6 +124,14 @@ class InsightService:
                 logger.warning(f"InsightService: Collection with ID {col_id} not found for insight generation.")
                 raise HTTPException(status_code=404, detail=f"Collection with ID {col_id} not found.")
             parent_entity = db_collection
+
+            # Check for existing insight
+            if db_collection.latestInsightId:
+                existing_insight = db.query(InsightModel).filter(InsightModel.insightId == db_collection.latestInsightId).first()
+                if existing_insight:
+                    logger.info(f"InsightService: Returning existing insight {existing_insight.insightId} for collection {col_id}.")
+                    return InsightInDB.model_validate(existing_insight, from_attributes=True)
+
             
             db_docs = document_service.get_documents_by_collection(db, col_id)
             if not db_docs:
@@ -143,6 +159,14 @@ class InsightService:
                 logger.warning(f"InsightService: Recommendation with ID {rec_id} not found for insight generation.")
                 raise HTTPException(status_code=404, detail=f"Recommendation with ID {rec_id} not found.")
             parent_entity = db_recommendation
+
+            # Check for existing insight
+            if db_recommendation.latest_insight_id:
+                existing_insight = db.query(InsightModel).filter(InsightModel.insightId == db_recommendation.latest_insight_id).first()
+                if existing_insight:
+                    logger.info(f"InsightService: Returning existing insight {existing_insight.insightId} for recommendation {rec_id}.")
+                    return InsightInDB.model_validate(existing_insight, from_attributes=True)
+
             
             if not db_recommendation.items:
                 logger.warning(f"InsightService: No items found in recommendation {rec_id} to generate insights.")

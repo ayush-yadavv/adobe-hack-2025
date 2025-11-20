@@ -124,6 +124,13 @@ class PodcastService:
             logger.error(f"PodcastService: Collection {collection_id} not found for podcast generation.")
             raise HTTPException(status_code=404, detail=f"Collection {collection_id} not found.")
 
+        # Check if a completed podcast already exists for this collection
+        if db_collection.latestPodcastId:
+            existing_podcast = db.query(Podcast).filter(Podcast.podcastId == db_collection.latestPodcastId).first()
+            if existing_podcast and existing_podcast.status == "completed":
+                logger.info(f"PodcastService: Returning existing completed podcast {existing_podcast.podcastId} for collection {collection_id}.")
+                return existing_podcast
+
         old_podcast_id = db_collection.latestPodcastId
 
         podcast_id = f"podcast_{uuid.uuid4().hex}"
@@ -280,6 +287,13 @@ class PodcastService:
             logger.error(f"PodcastService: Document {document_id} not found for podcast generation.")
             raise HTTPException(status_code=404, detail=f"Document {document_id} not found.")
 
+        # Check if a completed podcast already exists for this document
+        if db_doc.latestPodcastId:
+            existing_podcast = db.query(Podcast).filter(Podcast.podcastId == db_doc.latestPodcastId).first()
+            if existing_podcast and existing_podcast.status == "completed":
+                logger.info(f"PodcastService: Returning existing completed podcast {existing_podcast.podcastId} for document {document_id}.")
+                return existing_podcast
+
         old_podcast_id = db_doc.latestPodcastId
 
         podcast_id = f"podcast_{uuid.uuid4().hex}"
@@ -426,6 +440,13 @@ class PodcastService:
         if not db_recommendation:
             logger.error(f"PodcastService: Recommendation record {recommendation_id} not found for podcast generation.")
             raise HTTPException(status_code=404, detail=f"Recommendation record {recommendation_id} not found.")
+
+        # Check if a completed podcast already exists for this recommendation
+        if db_recommendation.latest_podcast_id:
+            existing_podcast = db.query(Podcast).filter(Podcast.podcastId == db_recommendation.latest_podcast_id).first()
+            if existing_podcast and existing_podcast.status == "completed":
+                logger.info(f"PodcastService: Returning existing completed podcast {existing_podcast.podcastId} for recommendation {recommendation_id}.")
+                return existing_podcast
 
         old_podcast_id = db_recommendation.latest_podcast_id
 

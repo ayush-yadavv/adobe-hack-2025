@@ -17,14 +17,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { UploadZone } from "@/components/upload-zone"; // Import UploadZone
-import { cn } from "@/lib/utils"; // Import cn for conditional class merging
+import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
   FileText,
+  PanelLeftClose,
+  PanelRightOpen,
   Search,
-  User,
+  User
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -125,7 +125,9 @@ export default function ReaderPage() {
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [isAdobeSDKReady, setIsAdobeSDKReady] = useState(false); // New state
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false); // State for upload dialog
-  const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false); // State for left sidebar collapse
+  const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
   const [showSearchBar, setShowSearchBar] = useState(false); // State for search bar visibility
   const [searchQuery, setSearchQuery] = useState(""); // State for search query
   const [
@@ -178,6 +180,7 @@ export default function ReaderPage() {
   > => {
     if (!collectionId) return []; // Return empty array if no collectionId
     try {
+      setIsLoading(true);
       const documentsResponse = await fetch(
         `http://localhost:8000/api/v1/documents/collections/${collectionId}/documents`
       );
@@ -191,8 +194,25 @@ export default function ReaderPage() {
       console.error("Error refreshing documents:", error);
       toast.error("Failed to refresh documents.");
       return []; // Return empty array on error
+    } finally {
+      setIsLoading(false);
     }
-  }, [collectionId]); // Add collectionId to dependencies
+  }, [collectionId]);
+
+  // Toggle sidebar collapsed state
+  const toggleSidebar = useCallback(() => {
+    setIsLeftSidebarCollapsed((prev) => !prev);
+    // Save preference to localStorage
+    localStorage.setItem('isSidebarCollapsed', String(!isLeftSidebarCollapsed));
+  }, [isLeftSidebarCollapsed]);
+
+  // Load sidebar preference on mount
+  useEffect(() => {
+    const savedPreference = localStorage.getItem('isSidebarCollapsed');
+    if (savedPreference !== null) {
+      setIsLeftSidebarCollapsed(savedPreference === 'true');
+    }
+  }, []);
 
   // Effect to load collection metadata
   useEffect(() => {
@@ -203,6 +223,7 @@ export default function ReaderPage() {
 
     const fetchCollection = async () => {
       try {
+        setIsLoading(true);
         const collectionResponse = await fetch(
           `http://localhost:8000/api/v1/collections/${collectionId}`
         );
@@ -215,6 +236,8 @@ export default function ReaderPage() {
         console.error("Error fetching collection metadata:", error);
         toast.error("Error fetching collection metadata.");
         navigate("/");
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -228,34 +251,62 @@ export default function ReaderPage() {
     }
 
     const fetchAndSetDocuments = async () => {
-      const fetchedDocuments = await refreshDocumentsInCollection(); // Get returned data
+      try {
+        setIsLoading(true);
+        const fetchedDocuments = await refreshDocumentsInCollection();
 
-      // Find the initial document to open from the fetched documents
-      const initialDocument = fetchedDocuments.find(
-        // Use fetchedDocuments
-        (doc) => doc.id === documentId
-      );
+        // Find the initial document to open from the fetched documents
+        const initialDocument = fetchedDocuments.find(
+          (doc) => doc.id === documentId
+        );
 
-      if (initialDocument) {
-        setOpenTabs([
-          {
-            id: initialDocument.id,
-            title:
-              initialDocument.docTitle === "Untitled Document"
-                ? initialDocument.docName
-                : initialDocument.docTitle, // Use docName for "Untitled Document"
-            docUrl: initialDocument.docUrl,
-          },
-        ]);
-        setActiveTab(initialDocument.id);
-      } else {
-        toast.error("Document not found in collection.");
-        navigate(`/collections/${collectionId}`);
+        if (initialDocument) {
+          setOpenTabs([
+            {
+              id: initialDocument.id,
+              title:
+                initialDocument.docTitle === "Untitled Document"
+                  ? initialDocument.docName
+                  : initialDocument.docTitle,
+              docUrl: initialDocument.docUrl,
+            },
+          ]);
+          setActiveTab(initialDocument.id);
+        } else {
+          toast.error("Document not found in collection.");
+          navigate(`/collections/${collectionId}`);
+        }
+      } catch (error) {
+        console.error("Error loading documents:", error);
+        toast.error("Failed to load documents.");
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchAndSetDocuments();
   }, [collectionId, documentId, navigate, refreshDocumentsInCollection]);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Toggle sidebar with Cmd+B or Ctrl+B
+      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+      }
+      // Close tab with Cmd+W or Ctrl+W
+      if ((e.metaKey || e.ctrlKey) && e.key === 'w' && activeTab) {
+        e.preventDefault();
+        // Close current tab logic here
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeTab, toggleSidebar]);
 
   // Effect to load Adobe PDF Embed API script and set SDK ready state
   useEffect(() => {
@@ -660,6 +711,7 @@ export default function ReaderPage() {
       }
 
       const podcastData = await response.json();
+      console.log("Generated Podcast Data:", podcastData);
       setGeneratedPodcast(podcastData);
       toast.success("Podcast generated successfully!");
     } catch (error: any) {
@@ -921,53 +973,36 @@ export default function ReaderPage() {
       </div>
     );
   }
-
   return (
-    <div className="flex h-screen bg-background text-foreground relative">
+    <div className="h-screen w-screen flex overflow-hidden bg-background text-foreground">
       {/* Left Sidebar */}
-      <div
-        className={cn(
-          "flex-shrink-0 border-r border-border flex flex-col transition-all duration-300",
-          isLeftSidebarCollapsed ? "w-[32px]" : "w-80"
-        )}
-      >
-        {/* Header */}
-        <div className="p-4 border-b border-border flex items-center justify-between relative">
-          {!isLeftSidebarCollapsed && (
-            <div className="flex flex-col mr-auto">
-              {" "}
-              {/* Group back button and text */}
-              <Button
-                variant="ghost"
-                onClick={() => navigate(-1)}
-                className="mb-2"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" /> Back
-              </Button>
-              <h2 className="text-lg font-semibold">
-                {collection.name || "Untitled Collection"}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {documentsInCollection.length} Documents
-              </p>
-            </div>
-          )}
-          <div
-            className={cn(
-              "flex items-center space-x-2",
-              isLeftSidebarCollapsed
-                ? "flex-col space-x-0 space-y-2 w-full"
-                : "absolute bottom-2 right-2"
-            )}
-          >
-            {" "}
-            {/* Icons for filter, sort, search, upload */}
+      <div className={cn(
+        'border-r border-border flex flex-col transition-all duration-300 ease-in-out',
+        isLeftSidebarCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-64 opacity-100'
+      )}>
+        <div className="p-4 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => navigate(-1)}
+              aria-label="Go back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h2 className="text-lg font-semibold">
+              {collection?.name || "Documents"}
+            </h2>
+          </div>
+          <div className="flex items-center gap-1">
+
             <Dialog
               open={isPersonaRecommendationDialogOpen}
               onOpenChange={setIsPersonaRecommendationDialogOpen}
             >
               <DialogTrigger asChild>
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
                   <User className="h-5 w-5" />
                 </Button>
               </DialogTrigger>
@@ -1014,6 +1049,7 @@ export default function ReaderPage() {
             <Button
               variant="ghost"
               size="icon"
+              className="h-8 w-8"
               onClick={() => {
                 setShowSearchBar(!showSearchBar);
                 setIsLeftSidebarCollapsed(false);
@@ -1022,8 +1058,7 @@ export default function ReaderPage() {
               <Search className="h-5 w-5" />
             </Button>
           </div>
-        </div>{" "}
-        {/* Closing tag for the header div */}
+        </div>
         {!isLeftSidebarCollapsed && (
           <>
             {showSearchBar && (
@@ -1107,7 +1142,19 @@ export default function ReaderPage() {
       {/* Main Viewer */}
       <div className="flex-1 flex flex-col bg-muted/40 min-w-0 relative">
         {/* Document Tabs */}
-        <div className="flex space-x-2 p-2 border-b border-border overflow-x-auto w-full tab-scrollbar">
+        <div className="h-10 flex items-center px-2 space-x-2 border-b border-border overflow-x-auto w-full tab-scrollbar">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            onClick={() => setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed)}
+          >
+            {isLeftSidebarCollapsed ? (
+              <PanelRightOpen className="h-5 w-5" />
+            ) : (
+              <PanelLeftClose className="h-5 w-5" />
+            )}
+          </Button>
           {openTabs.map((tab) => (
             <div
               key={tab.id}
@@ -1135,23 +1182,7 @@ export default function ReaderPage() {
           ))}
         </div>
 
-        {/* Toggle Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed)}
-          className={cn(
-            "absolute z-10 bg-background rounded-full shadow-md",
-            "left-0", // Always left-0 relative to Main Viewer
-            "top-[50px]" // Approximate height of tab bar + some margin
-          )}
-        >
-          {isLeftSidebarCollapsed ? (
-            <ChevronRight className="h-5 w-5" />
-          ) : (
-            <ChevronLeft className="h-5 w-5" />
-          )}
-        </Button>
+
 
         {/* PDF Viewer Container */}
         <div className="flex-1 flex items-center justify-center text-muted-foreground relative overflow-hidden">
@@ -1189,49 +1220,51 @@ export default function ReaderPage() {
           {/* Loading indicator */}
           {!isAdobeSDKReady && activeTab && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-              <div className="flex flex-col items-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-                <p>Loading PDF viewer...</p>
-              </div>
+              <p>Loading Adobe PDF Viewer...</p>
             </div>
           )}
         </div>
       </div>
+
       {/* Right Sidebar */}
       <div className="w-80 flex-shrink-0 border-l border-border flex flex-col">
-        <div className="p-4 border-b border-border flex overflow-x-auto whitespace-nowrap gap-2 tab-scrollbar">
-          <Button
-            variant={
-              rightSidebarActiveTab === "insights" ? "secondary" : "ghost"
-            }
+        <div className="h-10 flex items-center px-2 border-b border-border overflow-x-auto whitespace-nowrap gap-2 tab-scrollbar">
+          <div
+            className={cn(
+              "flex items-center px-3 py-1 rounded-md text-sm cursor-pointer flex-shrink-0",
+              rightSidebarActiveTab === "insights"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            )}
             onClick={() => setRightSidebarActiveTab("insights")}
-            className="flex-shrink-0"
           >
             Insights
-          </Button>
+          </div>
           {showRecommendationsTabButton && (
-            <Button
-              variant={
+            <div
+              className={cn(
+                "flex items-center px-3 py-1 rounded-md text-sm cursor-pointer flex-shrink-0",
                 rightSidebarActiveTab === "recommendations"
-                  ? "secondary"
-                  : "ghost"
-              }
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
               onClick={() => setRightSidebarActiveTab("recommendations")}
-              className="flex-shrink-0"
             >
               Recommendations
-            </Button>
+            </div>
           )}
           {showPodcastTabButton && (
-            <Button
-              variant={
-                rightSidebarActiveTab === "podcast" ? "secondary" : "ghost"
-              }
+            <div
+              className={cn(
+                "flex items-center px-3 py-1 rounded-md text-sm cursor-pointer flex-shrink-0",
+                rightSidebarActiveTab === "podcast"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
               onClick={() => setRightSidebarActiveTab("podcast")}
-              className="flex-shrink-0"
             >
               Podcast
-            </Button>
+            </div>
           )}
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -1391,6 +1424,7 @@ export default function ReaderPage() {
                               <p className="text-sm mb-2">
                                 {generatedPodcast.shortDescription}
                               </p>
+                              {(() => { console.log("Rendering Audio Player. URL:", generatedPodcast.audioUrl); return null; })()}
                               {generatedPodcast.audioUrl && (
                                 <audio
                                   controls
