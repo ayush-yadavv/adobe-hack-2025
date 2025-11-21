@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
   FileText,
+  Mic,
   PanelLeftClose,
   PanelRightOpen,
   Search,
@@ -163,6 +164,15 @@ export default function ReaderPage() {
   const [isInsightsLoading, setIsInsightsLoading] = useState(false);
   const [isRecommendationsLoading, setIsRecommendationsLoading] =
     useState(false);
+  
+  // Collection podcast generation state
+  const [isCollectionPodcastDialogOpen, setIsCollectionPodcastDialogOpen] = useState(false);
+  const [isGeneratingCollectionPodcast, setIsGeneratingCollectionPodcast] = useState(false);
+  const [collectionIncludeInsights, setCollectionIncludeInsights] = useState(false);
+  const [collectionMinDuration, setCollectionMinDuration] = useState(120);
+  const [collectionMaxDuration, setCollectionMaxDuration] = useState(240);
+  // Auto‑load existing podcast on page refresh
+  const [isLoadingExistingPodcast, setIsLoadingExistingPodcast] = useState(false);
 
   interface Insight {
     type: string;
@@ -232,6 +242,25 @@ export default function ReaderPage() {
         }
         const collectionData: Collection = await collectionResponse.json();
         setCollection(collectionData);
+        // If collection has a latestPodcastId, fetch and set it
+        if (collectionData.latestPodcastId) {
+          setIsLoadingExistingPodcast(true);
+          try {
+            const podcastResponse = await fetch(
+              `http://localhost:8000/api/v1/podcasts/${collectionData.latestPodcastId}`
+            );
+            if (!podcastResponse.ok) {
+              throw new Error(`HTTP error! status: ${podcastResponse.status}`);
+            }
+            const podcastData = await podcastResponse.json();
+            console.log('✅ Auto‑loaded existing podcast:', podcastData);
+            setGeneratedPodcast(podcastData);
+          } catch (err) {
+            console.error('Error loading existing podcast:', err);
+          } finally {
+            setIsLoadingExistingPodcast(false);
+          }
+        }
       } catch (error) {
         console.error("Error fetching collection metadata:", error);
         toast.error("Error fetching collection metadata.");
@@ -712,6 +741,21 @@ export default function ReaderPage() {
 
       const podcastData = await response.json();
       console.log("Generated Podcast Data:", podcastData);
+      
+      // Log metadata to verify recommendation was updated
+      if (podcastData._metadata) {
+        console.log("✅ Recommendation Update Verification:");
+        console.log("  - Recommendation ID:", selectedRecommendationId);
+        console.log("  - Latest Podcast ID:", podcastData._metadata.recommendation_latest_podcast_id);
+        console.log("  - Update Successful:", podcastData._metadata.recommendation_updated);
+        
+        if (podcastData._metadata.recommendation_updated) {
+          console.log("✅ Recommendation latestPodcastId successfully populated!");
+        } else {
+          console.warn("⚠️ Recommendation latestPodcastId may not have been updated");
+        }
+      }
+      
       setGeneratedPodcast(podcastData);
       toast.success("Podcast generated successfully!");
     } catch (error: any) {
@@ -723,6 +767,71 @@ export default function ReaderPage() {
       setIsGeneratingPodcast(false);
     }
   }, [selectedRecommendationId, includeInsights, minDuration, maxDuration]);
+
+  const handleGenerateCollectionPodcast = useCallback(async () => {
+    if (!collectionId) {
+      toast.error("No collection selected to generate podcast from.");
+      return;
+    }
+
+    setIsGeneratingCollectionPodcast(true);
+    setGeneratedPodcast(null); // Clear previous podcast data
+
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/v1/podcasts/generate/from-collection/${collectionId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            include_insights: collectionIncludeInsights,
+            min_duration_seconds: collectionMinDuration,
+            max_duration_seconds: collectionMaxDuration,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error generating collection podcast:", errorData);
+        throw new Error(
+          `Failed to generate collection podcast: ${
+            errorData.detail || response.statusText
+          }`
+        );
+      }
+
+      const podcastData = await response.json();
+      console.log("Generated Collection Podcast Data:", podcastData);
+      
+      // Log metadata to verify collection was updated
+      if (podcastData._metadata) {
+        console.log("✅ Collection Update Verification:");
+        console.log("  - Collection ID:", collectionId);
+        console.log("  - Latest Podcast ID:", podcastData._metadata.collection_latest_podcast_id);
+        console.log("  - Update Successful:", podcastData._metadata.collection_updated);
+        
+        if (podcastData._metadata.collection_updated) {
+          console.log("✅ Collection latestPodcastId successfully populated!");
+        } else {
+          console.warn("⚠️ Collection latestPodcastId may not have been updated");
+        }
+      }
+      
+      setGeneratedPodcast(podcastData);
+      setIsCollectionPodcastDialogOpen(false); // Close dialog on success
+      toast.success("Collection podcast generated successfully!");
+    } catch (error: any) {
+      console.error("Error generating collection podcast:", error);
+      toast.error(
+        error.message || "An unknown error occurred during collection podcast generation."
+      );
+    } finally {
+      setIsGeneratingCollectionPodcast(false);
+    }
+  }, [collectionId, collectionIncludeInsights, collectionMinDuration, collectionMaxDuration]);
 
   const handleGetPersonaRecommendations = useCallback(async () => {
     if (!personaInput || !jobToBeDoneInput || !collectionId) {
@@ -974,12 +1083,43 @@ export default function ReaderPage() {
     );
   }
   return (
-    <div className="h-screen w-screen flex overflow-hidden bg-background text-foreground">
-      {/* Left Sidebar */}
-      <div className={cn(
-        'border-r border-border flex flex-col transition-all duration-300 ease-in-out',
-        isLeftSidebarCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-64 opacity-100'
-      )}>
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-background text-foreground">
+      {/* Top Podcast Banner */}
+      {generatedPodcast && generatedPodcast.audioUrl && (
+        <div className="w-full border-b border-border bg-muted/30 px-4 py-2 flex items-center gap-4 flex-shrink-0">
+          <div className="flex-1 flex items-center gap-3 min-w-0">
+            <span className="text-sm font-medium whitespace-nowrap">🎙️ Podcast:</span>
+            <span className="text-sm text-muted-foreground truncate">
+              {generatedPodcast.shortDescription}
+            </span>
+          </div>
+          <audio
+            controls
+            src={generatedPodcast.audioUrl}
+            className="h-8 flex-shrink-0"
+            style={{ maxWidth: '400px' }}
+          >
+            Your browser does not support the audio element.
+          </audio>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 flex-shrink-0"
+            onClick={() => setGeneratedPodcast(null)}
+            aria-label="Close podcast player"
+          >
+            ✕
+          </Button>
+        </div>
+      )}
+      
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* Left Sidebar */}
+        <div className={cn(
+          'border-r border-border flex flex-col transition-all duration-300 ease-in-out',
+          isLeftSidebarCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-64 opacity-100'
+        )}>
         <div className="p-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Button
@@ -996,6 +1136,76 @@ export default function ReaderPage() {
             </h2>
           </div>
           <div className="flex items-center gap-1">
+            {/* Collection Podcast Generation Dialog */}
+            <Dialog
+              open={isCollectionPodcastDialogOpen}
+              onOpenChange={setIsCollectionPodcastDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  title="Generate Collection Podcast"
+                >
+                  <Mic className="h-5 w-5" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Generate Collection Podcast</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="collection-include-insights"
+                      checked={collectionIncludeInsights}
+                      onChange={(e) => setCollectionIncludeInsights(e.target.checked)}
+                      disabled={isGeneratingCollectionPodcast}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="collection-include-insights" className="text-sm">
+                      Include Insights
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <label htmlFor="collection-min-duration" className="text-right text-sm">
+                      Min Duration (s)
+                    </label>
+                    <Input
+                      id="collection-min-duration"
+                      type="number"
+                      value={collectionMinDuration}
+                      onChange={(e) => setCollectionMinDuration(Number(e.target.value))}
+                      className="col-span-3"
+                      disabled={isGeneratingCollectionPodcast}
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <label htmlFor="collection-max-duration" className="text-right text-sm">
+                      Max Duration (s)
+                    </label>
+                    <Input
+                      id="collection-max-duration"
+                      type="number"
+                      value={collectionMaxDuration}
+                      onChange={(e) => setCollectionMaxDuration(Number(e.target.value))}
+                      className="col-span-3"
+                      disabled={isGeneratingCollectionPodcast}
+                    />
+                  </div>
+                </div>
+                <Button
+                  onClick={handleGenerateCollectionPodcast}
+                  disabled={isGeneratingCollectionPodcast}
+                >
+                  {isGeneratingCollectionPodcast
+                    ? "Generating Podcast..."
+                    : "Generate Collection Podcast"}
+                </Button>
+              </DialogContent>
+            </Dialog>
 
             <Dialog
               open={isPersonaRecommendationDialogOpen}
@@ -1419,32 +1629,24 @@ export default function ReaderPage() {
                           <Card className="mt-4">
                             <CardContent className="p-4">
                               <h4 className="text-md font-semibold mb-2">
-                                Generated Podcast
+                                Podcast Details
                               </h4>
                               <p className="text-sm mb-2">
                                 {generatedPodcast.shortDescription}
                               </p>
-                              {(() => { console.log("Rendering Audio Player. URL:", generatedPodcast.audioUrl); return null; })()}
-                              {generatedPodcast.audioUrl && (
-                                <audio
-                                  controls
-                                  src={generatedPodcast.audioUrl}
-                                  className="w-full mb-2"
-                                >
-                                  Your browser does not support the audio
-                                  element.
-                                </audio>
-                              )}
+                              <p className="text-xs text-muted-foreground mb-3">
+                                🎙️ Audio player is available in the top banner
+                              </p>
                               {generatedPodcast.transcript &&
                                 generatedPodcast.transcript.length > 0 && (
                                   <div>
                                     <h5 className="text-sm font-medium mb-1">
                                       Transcript:
                                     </h5>
-                                    <ScrollArea className="h-32 border rounded-md p-2 text-xs">
+                                    <ScrollArea className="h-64 border rounded-md p-2 text-xs">
                                       {generatedPodcast.transcript.map(
                                         (line: any, idx: number) => (
-                                          <p key={idx}>
+                                          <p key={idx} className="mb-2">
                                             <strong>{line.speaker}:</strong>{" "}
                                             {line.dialogue}
                                           </p>
@@ -1500,6 +1702,7 @@ export default function ReaderPage() {
             }
           })()}
         </div>
+      </div>
       </div>
     </div>
   );

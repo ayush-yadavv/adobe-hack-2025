@@ -70,10 +70,10 @@ def generate_podcast_from_document(
 
 @router.post(
     "/generate/from-recommendation/{recommendation_id}",
-    response_model=PodcastInDB,
+    response_model=dict,  # Changed to dict to include additional metadata
     status_code=status.HTTP_201_CREATED,
     summary="Generate a podcast from a recommendation",
-    description="Generates an audio podcast from the content of a specified recommendation. The generation process is synchronous. Returns the details of the newly created podcast, including its audio URL and transcript."
+    description="Generates an audio podcast from the content of a specified recommendation. The generation process is synchronous. Returns the details of the newly created podcast, including its audio URL and transcript, plus confirmation that the recommendation's latestPodcastId was updated."
 )
 def generate_podcast_from_recommendation(
     *,
@@ -94,11 +94,13 @@ def generate_podcast_from_recommendation(
         storage_service (StorageService): Dependency for storage operations.
 
     Returns:
-        PodcastInDB: The newly created podcast's details.
+        dict: The newly created podcast's details plus metadata about the updated recommendation.
 
     Raises:
         HTTPException: 500 Internal Server Error for unexpected errors during generation.
     """
+    from app.models.recommendation import Recommendation
+    
     logger.info(f"API: Received request to generate podcast from recommendation ID: {recommendation_id}")
     try:
         db_podcast = podcast_service.generate_podcast_for_recommendation(
@@ -108,8 +110,21 @@ def generate_podcast_from_recommendation(
             podcast_in=podcast_in,
             include_insights=podcast_in.include_insights
         )
-        logger.info(f"API: Successfully generated podcast {db_podcast.podcastId} from recommendation {recommendation_id}.")
-        return db_podcast
+        
+        # Fetch the updated recommendation to confirm latestPodcastId was set
+        db_recommendation = db.query(Recommendation).filter(
+            Recommendation.recommendation_id == recommendation_id
+        ).first()
+        
+        # Convert podcast to dict and add metadata
+        podcast_dict = PodcastInDB.model_validate(db_podcast, from_attributes=True).model_dump()
+        podcast_dict["_metadata"] = {
+            "recommendation_latest_podcast_id": db_recommendation.latest_podcast_id if db_recommendation else None,
+            "recommendation_updated": db_recommendation.latest_podcast_id == db_podcast.podcastId if db_recommendation else False
+        }
+        
+        logger.info(f"API: Successfully generated podcast {db_podcast.podcastId} from recommendation {recommendation_id}. Recommendation latestPodcastId: {db_recommendation.latest_podcast_id if db_recommendation else 'N/A'}")
+        return podcast_dict
     except HTTPException as e:
         logger.error(f"API: HTTP Exception during recommendation podcast generation for {recommendation_id}: {e.detail}", exc_info=True)
         raise e
@@ -157,10 +172,10 @@ def get_podcast(
 
 @router.post(
     "/generate/from-collection/{collection_id}",
-    response_model=PodcastInDB,
+    response_model=dict,  # Changed to dict to include additional metadata
     status_code=status.HTTP_201_CREATED,
     summary="Generate a podcast from a collection",
-    description="Generates an audio podcast from the aggregated content of documents within a specified collection. The generation process is synchronous. Returns the details of the newly created podcast, including its audio URL and transcript."
+    description="Generates an audio podcast from the aggregated content of documents within a specified collection. The generation process is synchronous. Returns the details of the newly created podcast, including its audio URL and transcript, plus confirmation that the collection's latestPodcastId was updated."
 )
 def generate_podcast_from_collection(
     *,
@@ -181,11 +196,13 @@ def generate_podcast_from_collection(
         storage_service (StorageService): Dependency for storage operations.
 
     Returns:
-        PodcastInDB: The newly created podcast's details.
+        dict: The newly created podcast's details plus metadata about the updated collection.
 
     Raises:
         HTTPException: 500 Internal Server Error for unexpected errors during generation.
     """
+    from app.models.collection import Collection
+    
     logger.info(f"API: Received request to generate podcast from collection ID: {collection_id}")
     try:
         db_podcast = podcast_service.generate_podcast_for_collection(
@@ -195,8 +212,21 @@ def generate_podcast_from_collection(
             podcast_in=podcast_in,
             include_insights=podcast_in.include_insights
         )
-        logger.info(f"API: Successfully generated podcast {db_podcast.podcastId} from collection {collection_id}.")
-        return db_podcast
+        
+        # Fetch the updated collection to confirm latestPodcastId was set
+        db_collection = db.query(Collection).filter(
+            Collection.id == collection_id
+        ).first()
+        
+        # Convert podcast to dict and add metadata
+        podcast_dict = PodcastInDB.model_validate(db_podcast, from_attributes=True).model_dump()
+        podcast_dict["_metadata"] = {
+            "collection_latest_podcast_id": db_collection.latestPodcastId if db_collection else None,
+            "collection_updated": db_collection.latestPodcastId == db_podcast.podcastId if db_collection else False
+        }
+        
+        logger.info(f"API: Successfully generated podcast {db_podcast.podcastId} from collection {collection_id}. Collection latestPodcastId: {db_collection.latestPodcastId if db_collection else 'N/A'}")
+        return podcast_dict
     except HTTPException as e:
         logger.error(f"API: HTTP Exception during collection podcast generation for {collection_id}: {e.detail}", exc_info=True)
         raise e
